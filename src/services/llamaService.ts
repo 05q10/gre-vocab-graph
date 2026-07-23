@@ -41,7 +41,9 @@ For each candidate that has a genuine relationship to the target, classify it us
 
 Do not use SIMILAR_TO for words that are opposites of each other — use ANTONYM_OF for those, even if they also share a topic.
 
-Most candidates will have NO meaningful relationship to the target word — this is normal and expected. Only include a candidate in your response if you are genuinely confident a real relationship exists. It is correct to return an empty relationships array, or to omit most candidates. Do not force a relationship type onto a candidate just because it appeared in the list.
+CRITICAL INSTRUCTION: You must be an EXTREMELY STRICT lexicographer. If two words are only vaguely related, share a very broad category (e.g. "they are both emotions" or "they both describe behavior"), or are just "kind of" similar, you MUST OMIT THEM. Only create a relationship if it is strong enough to appear in a high-quality thesaurus or dictionary cross-reference.
+
+Most candidates will have NO meaningful relationship to the target word — this is normal and expected. Only include a candidate in your response if you are genuinely confident a real, strong relationship exists. It is perfectly correct to return an empty relationships array. Do NOT force a relationship type onto a candidate just because it appeared in the list!
 
 For CONFUSED_WITH specifically: only use this if the two words are ACTUALLY similar in spelling or pronunciation (e.g. 'affect' vs 'effect', 'complement' vs 'compliment'). Do not use CONFUSED_WITH for words that merely share a topic or a vague semantic connection — that likely belongs under RELATED_TO instead, or should be omitted entirely if the connection is too weak.
 

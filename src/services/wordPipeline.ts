@@ -4,8 +4,8 @@ import { detectRelationships, generateWordDetails } from "./llamaService";
 import { createRelationship } from "./relationshipService";
 import { Word } from "./../types/words";
 
-const CANDIDATE_POOL_SIZE = 25; // top-N from vector search, per spec's "20-30" range
-const MIN_CONFIDENCE = 0.65;      // relationships below this are discarded, not persisted
+const CANDIDATE_POOL_SIZE = 15; // Only send the closest vector matches to the LLM to avoid weak relationships
+const MIN_CONFIDENCE = 0.85;    // Require high confidence to avoid hallucinated links
 
 export interface AddWordResult {
   word: Word;
