@@ -19,8 +19,9 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import dagre from 'dagre';
-import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon, PlusIcon, XMarkIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 import GraphSidebar from '../../components/GraphSidebar';
+import AddWordForm from '../../components/AddWordForm';
 import { Word } from '../../types/words';
 import { RelationshipType } from '../../types/relationship';
 import Link from 'next/link';
@@ -103,6 +104,9 @@ function GraphInner() {
   
   const [selectedWord, setSelectedWord] = useState<Word | null>(null);
   const [connections, setConnections] = useState<{ word: string; type: RelationshipType }[]>([]);
+
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [successToast, setSuccessToast] = useState<{ word: string; count: number } | null>(null);
 
   const { fitView, setCenter } = useReactFlow();
 
@@ -196,6 +200,20 @@ function GraphInner() {
     setConnections(conns);
   }, [edges]);
 
+  const handleWordAdded = useCallback(async (word: string, count: number) => {
+    setIsAddModalOpen(false);
+    setSuccessToast({ word, count });
+    
+    // Clear toast after 4s
+    setTimeout(() => setSuccessToast(null), 4000);
+
+    // Refetch the graph data to include the new node and edges
+    await fetchData();
+
+    // Use the search effect to center on the new word
+    setSearchQuery(word);
+  }, [fetchData]);
+
   if (loading) {
     return <div className="flex-1 flex items-center justify-center">
       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>
@@ -254,6 +272,42 @@ function GraphInner() {
         connections={connections} 
         onClose={() => setSelectedWord(null)} 
       />
+
+      {/* Floating Action Button */}
+      <button
+        onClick={() => setIsAddModalOpen(true)}
+        className="absolute bottom-6 right-6 z-10 p-4 bg-accent hover:bg-accent/90 text-accent-foreground rounded-full shadow-lg transition-transform hover:scale-105"
+        aria-label="Add Word"
+      >
+        <PlusIcon className="w-6 h-6" />
+      </button>
+
+      {/* Add Word Modal */}
+      {isAddModalOpen && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+          <div className="relative w-full max-w-2xl">
+            <button 
+              onClick={() => setIsAddModalOpen(false)}
+              className="absolute -top-12 right-0 p-2 text-foreground-muted hover:text-foreground bg-surface rounded-full shadow border border-border"
+              aria-label="Close modal"
+            >
+              <XMarkIcon className="w-6 h-6" />
+            </button>
+            <AddWordForm onSuccessCallback={handleWordAdded} />
+          </div>
+        </div>
+      )}
+
+      {/* Success Toast */}
+      {successToast && (
+        <div className="absolute top-6 right-6 z-50 flex items-center space-x-3 p-4 rounded-xl bg-surface-elevated border-l-4 border-l-synonym shadow-lg animate-in fade-in slide-in-from-top-4">
+          <CheckCircleIcon className="h-6 w-6 text-synonym flex-shrink-0" />
+          <div className="text-sm">
+            <span className="font-bold text-foreground block">{successToast.word} added!</span>
+            <span className="text-foreground-muted">{successToast.count} relationships mapped.</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
