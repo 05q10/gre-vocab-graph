@@ -63,6 +63,16 @@ const getEdgeColor = (type: string) => {
 
 const formatRelType = (type: string) => type.replace('_', ' ').toLowerCase();
 
+const LEGEND_ITEMS = [
+  { type: 'SYNONYM_OF', color: 'var(--rel-synonym)', desc: 'Nearly identical meaning, interchangeable' },
+  { type: 'ANTONYM_OF', color: 'var(--rel-antonym)', desc: 'Opposite meaning' },
+  { type: 'SIMILAR_TO', color: 'var(--rel-similar)', desc: 'Overlapping meaning, but distinct' },
+  { type: 'RELATED_TO', color: 'var(--rel-related)', desc: 'Shares a broad topic or theme' },
+  { type: 'CONFUSED_WITH', color: 'var(--rel-confused)', desc: 'Mistaken identity / sound-alikes' },
+  { type: 'ROOT_RELATED', color: 'var(--rel-root)', desc: 'Shares a Latin/Greek root' },
+  { type: 'DERIVED_FROM', color: 'var(--rel-derived)', desc: 'Built from the same base word' },
+];
+
 const getLayoutedElements = (nodes: any[], edges: any[], direction = 'TB') => {
   const dagreGraph = new dagre.graphlib.Graph();
   dagreGraph.setDefaultEdgeLabel(() => ({}));
@@ -330,6 +340,21 @@ function GraphInner() {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-4 py-2 bg-surface text-sm border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-accent transition-shadow"
             />
+          </div>
+        </Panel>
+
+        <Panel position="bottom-left" className="bg-surface-elevated p-4 rounded-xl shadow-md border border-border m-4 z-10 hidden md:block max-w-xs">
+          <h3 className="text-sm font-bold text-foreground mb-3">Relationship Guide</h3>
+          <div className="space-y-2.5">
+            {LEGEND_ITEMS.map((item) => (
+              <div key={item.type} className="flex items-start gap-2.5">
+                <div className="w-3 h-3 rounded-full mt-0.5 flex-shrink-0" style={{ backgroundColor: item.color }} />
+                <div>
+                  <div className="text-[11px] font-bold text-foreground leading-none mb-1">{item.type.replace('_', ' ')}</div>
+                  <div className="text-[10px] text-foreground-muted leading-tight">{item.desc}</div>
+                </div>
+              </div>
+            ))}
           </div>
         </Panel>
       </ReactFlow>
