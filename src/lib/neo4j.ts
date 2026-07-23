@@ -21,7 +21,7 @@ declare global {
 function createDriver(): Driver {
   return neo4j.driver(
     NEO4J_URI as string,
-    neo4j.auth.basic(NEO4J_USERNAME.trim() as string, NEO4J_PASSWORD.trim() as string),
+    neo4j.auth.basic((NEO4J_USERNAME as string).trim(), (NEO4J_PASSWORD as string).trim()),
     {
       maxConnectionPoolSize: 50,
       connectionAcquisitionTimeout: 10_000,
