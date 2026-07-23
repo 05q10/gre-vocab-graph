@@ -1,4 +1,7 @@
-import { pipeline, FeatureExtractionPipeline } from "@xenova/transformers";
+import { pipeline, FeatureExtractionPipeline, env } from "@xenova/transformers";
+
+// Set cache directory to /tmp for Vercel serverless environment (read-only filesystem workaround)
+env.cacheDir = '/tmp';
 
 const MODEL_NAME = process.env.EMBEDDING_MODEL || "Xenova/all-MiniLM-L6-v2";
 
