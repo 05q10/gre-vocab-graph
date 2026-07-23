@@ -1,0 +1,86 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  /* Surfaces */
+  --background: #ffffff;
+  --surface: #f8f8f7;
+  --surface-elevated: #ffffff;
+
+  /* Text */
+  --foreground: #171717;
+  --foreground-muted: #6b6b6b;
+
+  /* Borders */
+  --border: #e5e5e3;
+  --border-strong: #cfcfcc;
+
+  /* Accent (buttons, links, active states) */
+  --accent: #4f46e5;
+  --accent-foreground: #ffffff;
+
+  /* Relationship type colors — used in graph edges, badges, stats chart */
+  --rel-synonym: #16a34a;
+  --rel-antonym: #dc2626;
+  --rel-similar: #2563eb;
+  --rel-confused: #ea580c;
+  --rel-root: #7c3aed;
+  --rel-derived: #0891b2;
+  --rel-related: #6b7280;
+}
+
+.dark {
+  --background: #0f0f0f;
+  --surface: #171717;
+  --surface-elevated: #1e1e1e;
+
+  --foreground: #ededed;
+  --foreground-muted: #9b9b9b;
+
+  --border: #2a2a2a;
+  --border-strong: #3a3a3a;
+
+  --accent: #818cf8;
+  --accent-foreground: #0f0f0f;
+
+  --rel-synonym: #4ade80;
+  --rel-antonym: #f87171;
+  --rel-similar: #60a5fa;
+  --rel-confused: #fb923c;
+  --rel-root: #a78bfa;
+  --rel-derived: #22d3ee;
+  --rel-related: #9ca3af;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-elevated: var(--surface-elevated);
+
+  --color-foreground: var(--foreground);
+  --color-foreground-muted: var(--foreground-muted);
+
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-synonym: var(--rel-synonym);
+  --color-antonym: var(--rel-antonym);
+  --color-similar: var(--rel-similar);
+  --color-confused: var(--rel-confused);
+  --color-root: var(--rel-root);
+  --color-derived: var(--rel-derived);
+  --color-related: var(--rel-related);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}

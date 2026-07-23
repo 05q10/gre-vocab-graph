@@ -1,0 +1,269 @@
+'use client';
+
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import {
+  ReactFlow,
+  ReactFlowProvider,
+  useNodesState,
+  useEdgesState,
+  useReactFlow,
+  Panel,
+  Handle,
+  Position,
+  NodeProps,
+  Background,
+  Controls,
+  MarkerType,
+  Node,
+  Edge
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
+import dagre from 'dagre';
+import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import GraphSidebar from '../../components/GraphSidebar';
+import { Word } from '../../types/words';
+import { RelationshipType } from '../../types/relationship';
+import Link from 'next/link';
+
+interface GraphData {
+  nodes: { id: string; data: Word }[];
+  edges: { id: string; source: string; target: string; type: RelationshipType; confidence: number }[];
+}
+
+// Custom Node for better styling
+const WordNode = ({ data, selected }: NodeProps) => {
+  return (
+    <div className={`px-4 py-2 shadow-md rounded-lg border-2 bg-surface transition-all ${selected || data.highlighted ? 'border-accent ring-4 ring-accent/20' : 'border-border'} ${data.highlighted ? 'scale-110' : ''}`}>
+      <Handle type="target" position={Position.Top} className="!w-2 !h-2 !bg-foreground-muted" />
+      <div className="font-bold text-foreground text-center text-sm">{data.word as string}</div>
+      <div className="text-[10px] text-foreground-muted text-center uppercase mt-1">{data.partOfSpeech as string}</div>
+      <Handle type="source" position={Position.Bottom} className="!w-2 !h-2 !bg-foreground-muted" />
+    </div>
+  );
+};
+
+const nodeTypes = {
+  wordNode: WordNode,
+};
+
+const getEdgeColor = (type: string) => {
+  switch (type) {
+    case 'SYNONYM_OF': return 'var(--rel-synonym)';
+    case 'ANTONYM_OF': return 'var(--rel-antonym)';
+    case 'SIMILAR_TO': return 'var(--rel-similar)';
+    case 'CONFUSED_WITH': return 'var(--rel-confused)';
+    case 'ROOT_RELATED': return 'var(--rel-root)';
+    case 'DERIVED_FROM': return 'var(--rel-derived)';
+    case 'RELATED_TO': return 'var(--rel-related)';
+    default: return 'var(--border-strong)';
+  }
+};
+
+const formatRelType = (type: string) => type.replace('_', ' ').toLowerCase();
+
+const getLayoutedElements = (nodes: any[], edges: any[], direction = 'TB') => {
+  const dagreGraph = new dagre.graphlib.Graph();
+  dagreGraph.setDefaultEdgeLabel(() => ({}));
+  
+  const nodeWidth = 140;
+  const nodeHeight = 60;
+
+  dagreGraph.setGraph({ rankdir: direction });
+
+  nodes.forEach((node) => {
+    dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight });
+  });
+
+  edges.forEach((edge) => {
+    dagreGraph.setEdge(edge.source, edge.target);
+  });
+
+  dagre.layout(dagreGraph);
+
+  const layoutedNodes = nodes.map((node) => {
+    const nodeWithPosition = dagreGraph.node(node.id);
+    return {
+      ...node,
+      position: {
+        x: nodeWithPosition.x - nodeWidth / 2,
+        y: nodeWithPosition.y - nodeHeight / 2,
+      },
+    };
+  });
+
+  return { layoutedNodes, layoutedEdges: edges };
+};
+
+function GraphInner() {
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  const [selectedWord, setSelectedWord] = useState<Word | null>(null);
+  const [connections, setConnections] = useState<{ word: string; type: RelationshipType }[]>([]);
+
+  const { fitView, setCenter } = useReactFlow();
+
+  const fetchData = useCallback(async () => {
+    try {
+      const res = await fetch('/api/graph');
+      if (!res.ok) throw new Error('Failed to fetch graph data');
+      const data: GraphData = await res.json();
+      
+      const initialNodes = data.nodes.map((n) => ({
+        id: n.id,
+        type: 'wordNode',
+        data: { ...n.data, highlighted: false },
+        position: { x: 0, y: 0 },
+      }));
+
+      const initialEdges = data.edges.map((e) => ({
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        type: 'smoothstep',
+        animated: true,
+        label: formatRelType(e.type),
+        labelStyle: { fill: getEdgeColor(e.type), fontWeight: 700, fontSize: 10 },
+        labelBgStyle: { fill: 'var(--surface)' },
+        style: { stroke: getEdgeColor(e.type), strokeWidth: 2 },
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          color: getEdgeColor(e.type),
+        },
+      }));
+
+      const { layoutedNodes, layoutedEdges } = getLayoutedElements(initialNodes, initialEdges);
+      
+      setNodes(layoutedNodes);
+      setEdges(layoutedEdges);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [setNodes, setEdges]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Initial fit view once nodes are loaded
+  useEffect(() => {
+    if (nodes.length > 0 && !loading) {
+      setTimeout(() => {
+        fitView({ padding: 0.2, duration: 800 });
+      }, 100);
+    }
+  }, [loading, fitView]); // omitting nodes.length to only run once when loaded
+
+  // Search effect
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setNodes((nds) => nds.map((n) => ({ ...n, data: { ...n.data, highlighted: false } })));
+      return;
+    }
+
+    const query = searchQuery.toLowerCase();
+    let found = false;
+
+    setNodes((nds) =>
+      nds.map((n) => {
+        const isMatch = (n.data.word as string).toLowerCase().includes(query);
+        if (isMatch && !found) {
+          found = true;
+          setCenter(n.position.x + 70, n.position.y + 30, { zoom: 1.2, duration: 800 });
+        }
+        return { ...n, data: { ...n.data, highlighted: isMatch } };
+      })
+    );
+  }, [searchQuery, setNodes, setCenter]);
+
+  const onNodeClick = useCallback((event: React.MouseEvent, node: any) => {
+    setSelectedWord(node.data as Word);
+    
+    // Find connections
+    const conns: { word: string; type: RelationshipType }[] = [];
+    edges.forEach((e) => {
+      if (e.source === node.id) {
+        conns.push({ word: e.target, type: e.label?.toString().toUpperCase().replace(' ', '_') as RelationshipType || 'RELATED_TO' });
+      } else if (e.target === node.id) {
+        conns.push({ word: e.source, type: e.label?.toString().toUpperCase().replace(' ', '_') as RelationshipType || 'RELATED_TO' });
+      }
+    });
+    setConnections(conns);
+  }, [edges]);
+
+  if (loading) {
+    return <div className="flex-1 flex items-center justify-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>
+    </div>;
+  }
+
+  if (error) {
+    return <div className="flex-1 flex items-center justify-center text-antonym">{error}</div>;
+  }
+
+  if (nodes.length === 0) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-4">
+        <h2 className="text-2xl font-bold text-foreground mb-2">No words added yet</h2>
+        <p className="text-foreground-muted mb-6">Add your first word to get started with the knowledge graph.</p>
+        <Link href="/" className="bg-accent hover:bg-accent/90 text-accent-foreground px-6 py-3 rounded-xl font-medium transition-colors">
+          Go to Home
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ width: '100%', height: '100%' }} className="relative bg-background overflow-hidden">
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onNodeClick={onNodeClick}
+        nodeTypes={nodeTypes}
+        fitView
+        proOptions={{ hideAttribution: true }}
+      >
+        <Background color="var(--border-strong)" gap={16} />
+        <Controls className="!bg-surface-elevated !border-border !fill-foreground" />
+        
+        <Panel position="top-left" className="bg-surface-elevated p-3 rounded-xl shadow-md border border-border w-72 md:w-80 m-4">
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <MagnifyingGlassIcon className="h-4 w-4 text-foreground-muted" />
+            </div>
+            <input
+              type="text"
+              placeholder="Search words..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 bg-surface text-sm border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-accent transition-shadow"
+            />
+          </div>
+        </Panel>
+      </ReactFlow>
+
+      <GraphSidebar 
+        word={selectedWord} 
+        connections={connections} 
+        onClose={() => setSelectedWord(null)} 
+      />
+    </div>
+  );
+}
+
+export default function GraphPage() {
+  return (
+    <div style={{ width: '100vw', height: 'calc(100vh - 64px)' }} className="relative">
+      <ReactFlowProvider>
+        <GraphInner />
+      </ReactFlowProvider>
+    </div>
+  );
+}

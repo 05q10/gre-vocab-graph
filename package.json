@@ -6,15 +6,24 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:init": "tsx --env-file=.env.local scripts/init-schema.ts"
   },
   "dependencies": {
+    "@heroicons/react": "^2.2.0",
+    "@xenova/transformers": "^2.17.2",
+    "@xyflow/react": "^12.11.1",
+    "dagre": "^0.8.5",
+    "neo4j-driver": "^6.2.0",
     "next": "16.2.10",
+    "openai": "^6.45.0",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/dagre": "^0.7.54",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
