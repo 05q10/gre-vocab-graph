@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { addWord } from '../../../services/wordPipeline';
 
+export const maxDuration = 60; // Allow pipeline up to 60s on Vercel
+
 const createWordSchema = z.object({
   word: z.string().min(1, 'Word is required').max(50, 'Word must be 50 characters or less'),
 });

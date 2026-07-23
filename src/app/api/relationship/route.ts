@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { createRelationship, deleteRelationship } from '../../../services/relationshipService';
 import { RELATIONSHIP_TYPES } from '../../../types/relationship';
 
+export const maxDuration = 60; // Allow up to 60s on Vercel
+
 const createRelationshipSchema = z.object({
   sourceWord: z.string().min(1, 'Source word is required'),
   targetWord: z.string().min(1, 'Target word is required'),
