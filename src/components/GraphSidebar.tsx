@@ -34,7 +34,7 @@ export default function GraphSidebar({ word, connections, onClose }: GraphSideba
   if (!word) return null;
 
   return (
-    <div className="fixed inset-y-0 right-0 w-80 md:w-96 bg-surface-elevated border-l border-border shadow-2xl flex flex-col z-40 transform transition-transform duration-300 ease-in-out">
+    <div className="fixed top-16 bottom-0 right-0 w-80 md:w-96 bg-surface-elevated border-l border-border shadow-2xl flex flex-col z-40 transform transition-transform duration-300 ease-in-out">
       <div className="flex items-center justify-between p-4 border-b border-border">
         <h2 className="text-xl font-bold text-foreground">{word.word}</h2>
         <button

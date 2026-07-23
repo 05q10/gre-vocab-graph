@@ -46,3 +46,40 @@ export async function createRelationship(
     await session.close();
   }
 }
+
+/**
+ * Deletes a relationship edge between two words.
+ * If type is provided, it deletes only the relationship of that specific type.
+ * If type is omitted, it deletes any relationships between the two words.
+ */
+export async function deleteRelationship(
+  sourceWord: string,
+  targetWord: string,
+  type?: RelationshipType
+): Promise<boolean> {
+  const session = driver.session();
+  try {
+    let query = `
+      MATCH (source:Word {word: $sourceWord})-[r]->(target:Word {word: $targetWord})
+      DELETE r
+      RETURN count(r) as deletedCount
+    `;
+
+    if (type) {
+      query = `
+        MATCH (source:Word {word: $sourceWord})-[r:${type}]->(target:Word {word: $targetWord})
+        DELETE r
+        RETURN count(r) as deletedCount
+      `;
+    }
+
+    const result = await session.run(query, {
+      sourceWord,
+      targetWord,
+    });
+    
+    return result.records[0].get('deletedCount').toNumber() > 0;
+  } finally {
+    await session.close();
+  }
+}

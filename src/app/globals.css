@@ -84,3 +84,10 @@ body {
   color: var(--color-foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
 }
+
+/* React Flow custom edge selection styles */
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke-width: 4 !important;
+  stroke: var(--color-accent) !important;
+  filter: drop-shadow(0 0 4px var(--color-accent));
+}

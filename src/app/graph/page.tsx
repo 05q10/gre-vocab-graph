@@ -15,7 +15,8 @@ import {
   Controls,
   MarkerType,
   Node,
-  Edge
+  Edge,
+  Connection
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import dagre from 'dagre';
@@ -23,7 +24,7 @@ import { MagnifyingGlassIcon, PlusIcon, XMarkIcon, CheckCircleIcon } from '@hero
 import GraphSidebar from '../../components/GraphSidebar';
 import AddWordForm from '../../components/AddWordForm';
 import { Word } from '../../types/words';
-import { RelationshipType } from '../../types/relationship';
+import { RelationshipType, RELATIONSHIP_TYPES } from '../../types/relationship';
 import Link from 'next/link';
 
 interface GraphData {
@@ -106,7 +107,10 @@ function GraphInner() {
   const [connections, setConnections] = useState<{ word: string; type: RelationshipType }[]>([]);
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [successToast, setSuccessToast] = useState<{ word: string; count: number } | null>(null);
+  const [successToast, setSuccessToast] = useState<{ word?: string; count?: number; message?: string } | null>(null);
+
+  const [pendingConnection, setPendingConnection] = useState<Connection | null>(null);
+  const [isCreatingEdge, setIsCreatingEdge] = useState(false);
 
   const { fitView, setCenter } = useReactFlow();
 
@@ -129,6 +133,7 @@ function GraphInner() {
         target: e.target,
         type: 'smoothstep',
         animated: true,
+        interactionWidth: 25,
         label: formatRelType(e.type),
         labelStyle: { fill: getEdgeColor(e.type), fontWeight: 700, fontSize: 10 },
         labelBgStyle: { fill: 'var(--surface)' },
@@ -214,6 +219,66 @@ function GraphInner() {
     setSearchQuery(word);
   }, [fetchData]);
 
+  const onConnect = useCallback((connection: Connection) => {
+    setPendingConnection(connection);
+  }, []);
+
+  const handleCreateEdge = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!pendingConnection) return;
+    
+    const formData = new FormData(e.currentTarget);
+    const type = formData.get('type') as string;
+    
+    setIsCreatingEdge(true);
+    try {
+      const res = await fetch('/api/relationship', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sourceWord: pendingConnection.source,
+          targetWord: pendingConnection.target,
+          type
+        })
+      });
+
+      if (!res.ok) throw new Error('Failed to create relationship');
+      
+      setSuccessToast({ message: 'Relationship created successfully!' });
+      setTimeout(() => setSuccessToast(null), 4000);
+      setPendingConnection(null);
+      await fetchData();
+    } catch (err) {
+      console.error(err);
+      alert('Error creating relationship');
+    } finally {
+      setIsCreatingEdge(false);
+    }
+  };
+
+  const onEdgesDelete = useCallback(async (deletedEdges: Edge[]) => {
+    for (const edge of deletedEdges) {
+      try {
+        const rawType = edge.label?.toString().toUpperCase().replace(' ', '_');
+        await fetch('/api/relationship', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sourceWord: edge.source,
+            targetWord: edge.target,
+            type: rawType
+          })
+        });
+      } catch (err) {
+        console.error('Failed to delete edge:', err);
+      }
+    }
+    setSuccessToast({ message: 'Relationship deleted successfully!' });
+    setTimeout(() => setSuccessToast(null), 4000);
+    // fetchData() is not strictly necessary here because ReactFlow removes it visually, 
+    // but good to keep state in sync if you want, though ReactFlow handles the visual removal nicely.
+  }, []);
+
   if (loading) {
     return <div className="flex-1 flex items-center justify-center">
       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>
@@ -244,6 +309,8 @@ function GraphInner() {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeClick={onNodeClick}
+        onConnect={onConnect}
+        onEdgesDelete={onEdgesDelete}
         nodeTypes={nodeTypes}
         fitView
         proOptions={{ hideAttribution: true }}
@@ -251,7 +318,7 @@ function GraphInner() {
         <Background color="var(--border-strong)" gap={16} />
         <Controls className="!bg-surface-elevated !border-border !fill-foreground" />
         
-        <Panel position="top-left" className="bg-surface-elevated p-3 rounded-xl shadow-md border border-border w-72 md:w-80 m-4">
+        <Panel position="top-center" className="bg-surface-elevated p-3 rounded-xl shadow-md border border-border w-72 md:w-80 m-4 z-10">
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <MagnifyingGlassIcon className="h-4 w-4 text-foreground-muted" />
@@ -276,7 +343,9 @@ function GraphInner() {
       {/* Floating Action Button */}
       <button
         onClick={() => setIsAddModalOpen(true)}
-        className="absolute bottom-6 right-6 z-10 p-4 bg-accent hover:bg-accent/90 text-accent-foreground rounded-full shadow-lg transition-transform hover:scale-105"
+        className={`absolute bottom-6 z-10 p-4 bg-accent hover:bg-accent/90 text-accent-foreground rounded-full shadow-lg transition-all duration-300 hover:scale-105 ${
+          selectedWord ? 'right-[344px] md:right-[408px]' : 'right-6'
+        }`}
         aria-label="Add Word"
       >
         <PlusIcon className="w-6 h-6" />
@@ -303,8 +372,58 @@ function GraphInner() {
         <div className="absolute top-6 right-6 z-50 flex items-center space-x-3 p-4 rounded-xl bg-surface-elevated border-l-4 border-l-synonym shadow-lg animate-in fade-in slide-in-from-top-4">
           <CheckCircleIcon className="h-6 w-6 text-synonym flex-shrink-0" />
           <div className="text-sm">
-            <span className="font-bold text-foreground block">{successToast.word} added!</span>
-            <span className="text-foreground-muted">{successToast.count} relationships mapped.</span>
+            {successToast.word ? (
+              <>
+                <span className="font-bold text-foreground block">{successToast.word} added!</span>
+                <span className="text-foreground-muted">{successToast.count} relationships mapped.</span>
+              </>
+            ) : (
+              <span className="font-bold text-foreground block">{successToast.message}</span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Add Edge Modal */}
+      {pendingConnection && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+          <div className="relative w-full max-w-md bg-surface-elevated rounded-2xl shadow-xl border border-border p-6">
+            <button 
+              onClick={() => setPendingConnection(null)}
+              className="absolute top-4 right-4 p-2 text-foreground-muted hover:text-foreground bg-surface rounded-full shadow border border-border"
+              aria-label="Cancel"
+            >
+              <XMarkIcon className="w-5 h-5" />
+            </button>
+            <h2 className="text-xl font-bold text-foreground mb-4">Create Relationship</h2>
+            <p className="text-sm text-foreground-muted mb-6">
+              Connect <strong>{pendingConnection.source}</strong> to <strong>{pendingConnection.target}</strong>
+            </p>
+            <form onSubmit={handleCreateEdge} className="space-y-6">
+              <div className="space-y-2">
+                <label htmlFor="type" className="block text-sm font-medium text-foreground">
+                  Relationship Type
+                </label>
+                <select
+                  name="type"
+                  id="type"
+                  required
+                  className="w-full px-4 py-2.5 rounded-xl border border-border bg-surface text-foreground focus:outline-none focus:ring-2 focus:ring-accent appearance-none"
+                >
+                  <option value="">Select type...</option>
+                  {RELATIONSHIP_TYPES.map(t => (
+                    <option key={t} value={t}>{t.replace('_', ' ')}</option>
+                  ))}
+                </select>
+              </div>
+              <button
+                type="submit"
+                disabled={isCreatingEdge}
+                className="w-full bg-accent hover:bg-accent/90 text-accent-foreground px-6 py-3 rounded-xl font-medium transition-colors disabled:opacity-70"
+              >
+                {isCreatingEdge ? 'Creating...' : 'Create Edge'}
+              </button>
+            </form>
           </div>
         </div>
       )}
