@@ -50,17 +50,43 @@ export default function GraphSidebar({ word, connections, onClose }: GraphSideba
           <span className="inline-block px-2.5 py-1 rounded-md bg-surface border border-border text-xs font-medium text-foreground-muted uppercase tracking-wider mb-3">
             {word.partOfSpeech}
           </span>
-          <p className="text-foreground text-[15px] leading-relaxed">
-            {word.meaning}
+          <p className="text-foreground text-[15px] leading-relaxed mb-3">
+            <span className="font-bold mr-1">1.</span> {word.meaning}
           </p>
-        </div>
-
-        <div>
-          <h3 className="text-sm font-semibold text-foreground-muted uppercase tracking-wider mb-2">Example</h3>
-          <p className="text-[15px] text-foreground italic border-l-2 border-accent pl-3 py-1">
+          <p className="text-[14px] text-foreground-muted italic border-l-2 border-accent pl-3 py-1">
             "{word.example}"
           </p>
         </div>
+
+        {(() => {
+          if (!word.additionalMeanings) return null;
+          try {
+            const extra = JSON.parse(word.additionalMeanings);
+            if (!Array.isArray(extra) || extra.length === 0) return null;
+            return (
+              <div className="space-y-4 pt-4 border-t border-border/50">
+                <h3 className="text-sm font-semibold text-foreground-muted uppercase tracking-wider">Alternative Meanings</h3>
+                {extra.map((m: any, idx: number) => (
+                  <div key={idx}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-surface-elevated border border-border text-foreground-muted uppercase">
+                        {m.partOfSpeech}
+                      </span>
+                    </div>
+                    <p className="text-foreground text-[14px] leading-relaxed mb-2">
+                      <span className="font-bold mr-1">{idx + 2}.</span> {m.meaning}
+                    </p>
+                    <p className="text-[13px] text-foreground-muted italic border-l-2 border-border pl-3 py-1">
+                      "{m.example}"
+                    </p>
+                  </div>
+                ))}
+              </div>
+            );
+          } catch (e) {
+            return null;
+          }
+        })()}
 
         <div>
           <div className="flex items-center justify-between mb-3">

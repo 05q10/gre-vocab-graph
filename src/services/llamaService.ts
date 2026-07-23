@@ -103,24 +103,34 @@ export async function detectRelationships(
   );
 }
 
-const WordDetailsSchema = z.object({
+const WordMeaningSchema = z.object({
   meaning: z.string().min(1),
   example: z.string().min(1),
   partOfSpeech: z.enum(['Noun', 'Verb', 'Adjective', 'Adverb', 'Other']),
+});
+
+const WordDetailsSchema = z.object({
+  meanings: z.array(WordMeaningSchema).min(1).max(3),
 });
 
 export async function generateWordDetails(word: string): Promise<{
   meaning: string;
   example: string;
   partOfSpeech: string;
+  additionalMeanings?: string;
 }> {
-  const prompt = `Provide the most common GRE-relevant meaning, a natural example sentence using the word, and its part of speech for the word: ${word}. 
+  const prompt = `Provide up to 3 common GRE-relevant meanings for the word: ${word}. 
+Order them by how common/relevant they are, with the most important meaning first. For each meaning, provide a natural example sentence and its part of speech.
 
 Respond with ONLY valid JSON in exactly this shape:
 {
-  "meaning": "string",
-  "example": "string",
-  "partOfSpeech": "Noun" // must be one of: Noun, Verb, Adjective, Adverb, Other
+  "meanings": [
+    {
+      "meaning": "string",
+      "example": "string",
+      "partOfSpeech": "Noun" // must be one of: Noun, Verb, Adjective, Adverb, Other
+    }
+  ]
 }`;
 
   const completion = await llama.chat.completions.create({
@@ -144,8 +154,17 @@ Respond with ONLY valid JSON in exactly this shape:
 
   const result = WordDetailsSchema.safeParse(parsed);
   if (!result.success) {
+    console.error("Llama generation failed schema:", result.error.issues);
     throw new Error(`Could not generate details for "${word}" — try again`);
   }
 
-  return result.data;
+  const primary = result.data.meanings[0];
+  const additional = result.data.meanings.slice(1);
+
+  return {
+    meaning: primary.meaning,
+    example: primary.example,
+    partOfSpeech: primary.partOfSpeech,
+    additionalMeanings: additional.length > 0 ? JSON.stringify(additional) : undefined,
+  };
 }
