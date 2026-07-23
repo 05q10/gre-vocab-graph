@@ -5,7 +5,8 @@ import { createRelationship } from "./relationshipService";
 import { Word } from "./../types/words";
 
 const CANDIDATE_POOL_SIZE = 15; // Only send the closest vector matches to the LLM to avoid weak relationships
-const MIN_CONFIDENCE = 0.85;    // Require high confidence to avoid hallucinated links
+const MIN_CONFIDENCE = 0.90;    // Require extremely high confidence to avoid hallucinated links
+const MIN_VECTOR_SIMILARITY = 0.55; // Drop candidates mathematically proven to be unrelated before LLM sees them
 
 export interface AddWordResult {
   word: Word;
@@ -43,7 +44,9 @@ export async function addWord(input: AddWordInput): Promise<AddWordResult> {
   const embedding = await generateEmbedding(embeddingInput);
   await storeEmbedding(input.word, embedding);
 
-  const candidates = await findNearestNeighbors(embedding, input.word, CANDIDATE_POOL_SIZE);
+  const rawCandidates = await findNearestNeighbors(embedding, input.word, CANDIDATE_POOL_SIZE);
+  // Hard-drop candidates that are too far away in vector space to possibly be related
+  const candidates = rawCandidates.filter(c => c.score >= MIN_VECTOR_SIMILARITY);
 
   if (candidates.length === 0) {
     return { word: { ...word, embedding }, relationshipsCreated: 0 };
