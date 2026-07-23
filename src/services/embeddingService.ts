@@ -3,7 +3,7 @@ import { pipeline, FeatureExtractionPipeline, env } from "@xenova/transformers";
 // Set cache directory to /tmp for Vercel serverless environment (read-only filesystem workaround)
 env.cacheDir = '/tmp';
 
-const MODEL_NAME = process.env.EMBEDDING_MODEL || "Xenova/all-MiniLM-L6-v2";
+const MODEL_NAME = (process.env.EMBEDDING_MODEL || "Xenova/all-MiniLM-L6-v2").trim();
 
 // The pipeline takes several seconds to initialize (loading model weights
 // into memory). We cache the loaded pipeline in module scope so it's only
