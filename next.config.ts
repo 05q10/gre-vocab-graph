@@ -2,10 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ['onnxruntime-node', 'sharp'],
-  experimental: {
-    outputFileTracingIncludes: {
-      '/api/**/*': ['./node_modules/onnxruntime-node/bin/napi-v3/linux/x64/**/*'],
-    },
+  outputFileTracingIncludes: {
+    '/api/**/*': ['./node_modules/onnxruntime-node/bin/napi-v3/linux/x64/**/*'],
   },
 };
 
