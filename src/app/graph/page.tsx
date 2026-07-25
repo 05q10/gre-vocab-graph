@@ -121,6 +121,8 @@ function GraphInner() {
 
   const [pendingConnection, setPendingConnection] = useState<Connection | null>(null);
   const [isCreatingEdge, setIsCreatingEdge] = useState(false);
+  
+  const [selectedEdge, setSelectedEdge] = useState<{ id: string, source: string, target: string, type: string, x: number, y: number } | null>(null);
 
   const { fitView, setCenter } = useReactFlow();
 
@@ -143,7 +145,7 @@ function GraphInner() {
         target: e.target,
         type: 'smoothstep',
         animated: true,
-        interactionWidth: 25,
+        interactionWidth: 44,
         label: formatRelType(e.type),
         labelStyle: { fill: getEdgeColor(e.type), fontWeight: 700, fontSize: 10 },
         labelBgStyle: { fill: 'var(--surface)' },
@@ -201,6 +203,7 @@ function GraphInner() {
   }, [searchQuery, setNodes, setCenter]);
 
   const onNodeClick = useCallback((event: React.MouseEvent, node: any) => {
+    setSelectedEdge(null);
     setSelectedWord(node.data as Word);
     
     // Find connections
@@ -219,18 +222,93 @@ function GraphInner() {
     setIsAddModalOpen(false);
     setSuccessToast({ word, count });
     
-    // Clear toast after 4s
     setTimeout(() => setSuccessToast(null), 4000);
 
-    // Refetch the graph data to include the new node and edges
     await fetchData();
-
-    // Use the search effect to center on the new word
     setSearchQuery(word);
   }, [fetchData]);
 
+  const onNavigateToWord = useCallback((wordString: string) => {
+    const targetNode = nodes.find(n => (n.data.word as string) === wordString);
+    if (targetNode) {
+      setSelectedWord(targetNode.data as unknown as Word);
+      
+      const conns: { word: string; type: RelationshipType }[] = [];
+      edges.forEach((e) => {
+        if (e.source === targetNode.id) {
+          conns.push({ word: e.target, type: e.label?.toString().toUpperCase().replace(' ', '_') as RelationshipType || 'RELATED_TO' });
+        } else if (e.target === targetNode.id) {
+          conns.push({ word: e.source, type: e.label?.toString().toUpperCase().replace(' ', '_') as RelationshipType || 'RELATED_TO' });
+        }
+      });
+      setConnections(conns);
+      setCenter(targetNode.position.x + 70, targetNode.position.y + 30, { zoom: 1.2, duration: 800 });
+    }
+  }, [nodes, edges, setCenter]);
+
+  const handleDeleteRelationshipFromSidebar = useCallback(async (targetWordString: string, type: string) => {
+    if (!selectedWord) return;
+    try {
+      await fetch('/api/relationship', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sourceWord: selectedWord.word,
+          targetWord: targetWordString,
+          type
+        })
+      });
+      
+      setEdges((eds) => eds.filter(e => {
+        const matchesSourceTarget = (e.source === selectedWord.word && e.target === targetWordString) || (e.target === selectedWord.word && e.source === targetWordString);
+        const matchesType = (e.label?.toString().toUpperCase().replace(' ', '_') || 'RELATED_TO') === type;
+        return !(matchesSourceTarget && matchesType);
+      }));
+      
+      setConnections((prev) => prev.filter(c => !(c.word === targetWordString && c.type === type)));
+      
+      setSuccessToast({ message: 'Relationship deleted successfully!' });
+      setTimeout(() => setSuccessToast(null), 4000);
+    } catch (err) {
+      console.error('Failed to delete relationship:', err);
+    }
+  }, [selectedWord, setEdges]);
+
+  const handleUpdateRemarks = useCallback((wordString: string, remarks: string) => {
+    setNodes(nds => nds.map(node => {
+      if ((node.data.word as string) === wordString) {
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            remarks
+          }
+        };
+      }
+      return node;
+    }));
+    
+    setSelectedWord(prev => {
+      if (prev && prev.word === wordString) {
+        return { ...prev, remarks };
+      }
+      return prev;
+    });
+  }, [setNodes]);
+
   const onConnect = useCallback((connection: Connection) => {
     setPendingConnection(connection);
+  }, []);
+
+  const onEdgeClick = useCallback((event: React.MouseEvent, edge: Edge) => {
+    setSelectedEdge({
+      id: edge.id,
+      source: edge.source,
+      target: edge.target,
+      type: edge.label?.toString().toUpperCase().replace(' ', '_') || 'RELATED_TO',
+      x: event.clientX,
+      y: event.clientY,
+    });
   }, []);
 
   const handleCreateEdge = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -285,9 +363,28 @@ function GraphInner() {
     }
     setSuccessToast({ message: 'Relationship deleted successfully!' });
     setTimeout(() => setSuccessToast(null), 4000);
-    // fetchData() is not strictly necessary here because ReactFlow removes it visually, 
-    // but good to keep state in sync if you want, though ReactFlow handles the visual removal nicely.
   }, []);
+
+  const handleDeleteSelectedEdge = async () => {
+    if (!selectedEdge) return;
+    try {
+      await fetch('/api/relationship', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sourceWord: selectedEdge.source,
+          targetWord: selectedEdge.target,
+          type: selectedEdge.type
+        })
+      });
+      setEdges((eds) => eds.filter(e => e.id !== selectedEdge.id));
+      setSuccessToast({ message: 'Relationship deleted successfully!' });
+      setTimeout(() => setSuccessToast(null), 4000);
+      setSelectedEdge(null);
+    } catch (err) {
+      console.error('Failed to delete edge:', err);
+    }
+  };
 
   if (loading) {
     return <div className="flex-1 flex items-center justify-center">
@@ -319,6 +416,8 @@ function GraphInner() {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeClick={onNodeClick}
+        onEdgeClick={onEdgeClick}
+        onPaneClick={() => setSelectedEdge(null)}
         onConnect={onConnect}
         onEdgesDelete={onEdgesDelete}
         nodeTypes={nodeTypes}
@@ -363,6 +462,9 @@ function GraphInner() {
         word={selectedWord} 
         connections={connections} 
         onClose={() => setSelectedWord(null)} 
+        onNavigateToWord={onNavigateToWord}
+        onDeleteRelationship={handleDeleteRelationshipFromSidebar}
+        onUpdateRemarks={handleUpdateRemarks}
       />
 
       {/* Floating Action Button */}
@@ -450,6 +552,25 @@ function GraphInner() {
               </button>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* Edge Context Menu */}
+      {selectedEdge && (
+        <div 
+          className="fixed z-50 bg-surface-elevated border border-border rounded-lg shadow-xl overflow-hidden min-w-[120px]"
+          style={{ top: selectedEdge.y - 10, left: selectedEdge.x + 10 }}
+        >
+          <div className="px-3 py-2 text-xs font-semibold text-foreground-muted uppercase tracking-wider bg-surface border-b border-border">
+            Relationship
+          </div>
+          <button
+            onClick={handleDeleteSelectedEdge}
+            className="w-full text-left px-4 py-3 text-sm text-antonym hover:bg-surface font-medium transition-colors flex items-center gap-2"
+          >
+            <XMarkIcon className="w-4 h-4" />
+            Delete Edge
+          </button>
         </div>
       )}
     </div>

@@ -1,4 +1,5 @@
-import { XMarkIcon } from '@heroicons/react/24/outline';
+import { useState, useEffect } from 'react';
+import { XMarkIcon, MinusCircleIcon, CheckIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import { Word } from '../types/words';
 import { RelationshipType } from '../types/relationship';
 
@@ -11,6 +12,9 @@ interface GraphSidebarProps {
   word: Word | null;
   connections: ConnectedWord[];
   onClose: () => void;
+  onNavigateToWord: (word: string) => void;
+  onDeleteRelationship: (word: string, type: RelationshipType) => void;
+  onUpdateRemarks?: (word: string, remarks: string) => void;
 }
 
 const getRelBadgeClasses = (type: RelationshipType) => {
@@ -30,7 +34,38 @@ const formatRelType = (type: string) => {
   return type.replace('_', ' ').toLowerCase();
 };
 
-export default function GraphSidebar({ word, connections, onClose }: GraphSidebarProps) {
+export default function GraphSidebar({ word, connections, onClose, onNavigateToWord, onDeleteRelationship, onUpdateRemarks }: GraphSidebarProps) {
+  const [remarks, setRemarks] = useState('');
+  const [isSavingRemarks, setIsSavingRemarks] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  useEffect(() => {
+    if (word) {
+      setRemarks(word.remarks || '');
+    }
+  }, [word]);
+
+  const handleSaveRemarks = async () => {
+    if (!word || remarks === (word.remarks || '')) return;
+    setIsSavingRemarks(true);
+    try {
+      const res = await fetch('/api/word', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ word: word.word, remarks })
+      });
+      if (res.ok) {
+        onUpdateRemarks?.(word.word, remarks);
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 2000);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSavingRemarks(false);
+    }
+  };
+
   if (!word) return null;
 
   return (
@@ -88,6 +123,24 @@ export default function GraphSidebar({ word, connections, onClose }: GraphSideba
           }
         })()}
 
+        <div className="pt-4 border-t border-border/50">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-semibold text-foreground-muted uppercase tracking-wider">Remarks</h3>
+            {isSavingRemarks ? (
+              <ArrowPathIcon className="w-4 h-4 text-foreground-muted animate-spin" />
+            ) : saveSuccess ? (
+              <CheckIcon className="w-4 h-4 text-synonym" />
+            ) : null}
+          </div>
+          <textarea
+            value={remarks}
+            onChange={(e) => setRemarks(e.target.value)}
+            onBlur={handleSaveRemarks}
+            placeholder="Add personal notes or remarks here..."
+            className="w-full min-h-[100px] p-3 text-sm bg-surface border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-shadow resize-y"
+          />
+        </div>
+
         <div>
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-foreground-muted uppercase tracking-wider">Connections</h3>
@@ -101,11 +154,29 @@ export default function GraphSidebar({ word, connections, onClose }: GraphSideba
           ) : (
             <ul className="space-y-2">
               {connections.map((conn, idx) => (
-                <li key={idx} className="flex items-center justify-between p-2 rounded-lg border border-border bg-surface">
-                  <span className="font-medium text-foreground">{conn.word}</span>
-                  <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded border ${getRelBadgeClasses(conn.type)}`}>
-                    {formatRelType(conn.type)}
-                  </span>
+                <li key={idx} className="flex items-center justify-between p-2 rounded-lg border border-border bg-surface hover:bg-surface-elevated transition-colors">
+                  <button 
+                    onClick={() => onNavigateToWord(conn.word)}
+                    className="flex-1 text-left font-medium text-foreground hover:text-accent transition-colors"
+                  >
+                    {conn.word}
+                  </button>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded border ${getRelBadgeClasses(conn.type)}`}>
+                      {formatRelType(conn.type)}
+                    </span>
+                    <button
+                      onClick={() => {
+                        if (confirm(`Are you sure you want to delete the relationship between ${word.word} and ${conn.word}?`)) {
+                          onDeleteRelationship(conn.word, conn.type);
+                        }
+                      }}
+                      className="text-foreground-muted hover:text-antonym transition-colors"
+                      aria-label="Delete relationship"
+                    >
+                      <MinusCircleIcon className="w-5 h-5" />
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>

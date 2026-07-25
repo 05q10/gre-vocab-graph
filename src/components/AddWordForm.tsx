@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { PlusIcon, ArrowPathIcon, CheckCircleIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline';
 
 export default function AddWordForm({ 
@@ -8,6 +8,10 @@ export default function AddWordForm({
 }: { 
   onSuccessCallback?: (word: string, count: number) => void 
 }) {
+  const [wordInput, setWordInput] = useState('');
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  
   const [loading, setLoading] = useState(false);
   const [loadingWord, setLoadingWord] = useState('');
   const [success, setSuccess] = useState<{ 
@@ -19,22 +23,44 @@ export default function AddWordForm({
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      const term = wordInput.trim();
+      if (term.length > 2) {
+        try {
+          const res = await fetch(`https://api.datamuse.com/sug?s=${term}`);
+          const data = await res.json();
+          if (data.length > 0 && data[0].word.toLowerCase() === term.toLowerCase()) {
+            setSuggestions([]);
+          } else {
+            setSuggestions(data.slice(0, 3).map((d: any) => d.word));
+          }
+        } catch (e) {
+          console.error("Failed to fetch spelling suggestions");
+        }
+      } else {
+        setSuggestions([]);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [wordInput]);
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
-    const formData = new FormData(e.currentTarget);
-    const wordInput = formData.get('word') as string;
+    if (!wordInput.trim()) return;
     
     setLoading(true);
-    setLoadingWord(wordInput);
+    setLoadingWord(wordInput.trim());
     setError(null);
     setSuccess(null);
+    setShowSuggestions(false);
 
     try {
       const response = await fetch('/api/word', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ word: wordInput }),
+        body: JSON.stringify({ word: wordInput.trim() }),
       });
 
       const result = await response.json();
@@ -50,7 +76,7 @@ export default function AddWordForm({
         partOfSpeech: result.word.partOfSpeech,
         count: result.relationshipsCreated 
       });
-      (e.target as HTMLFormElement).reset();
+      setWordInput('');
       
       if (onSuccessCallback) {
         onSuccessCallback(result.word.word, result.relationshipsCreated);
@@ -71,7 +97,7 @@ export default function AddWordForm({
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="space-y-2">
+        <div className="space-y-2 relative">
           <label htmlFor="word" className="block text-sm font-medium text-foreground">
             Word
           </label>
@@ -81,9 +107,38 @@ export default function AddWordForm({
             id="word"
             required
             disabled={loading}
+            value={wordInput}
+            onChange={(e) => {
+              setWordInput(e.target.value);
+              setShowSuggestions(true);
+            }}
+            onFocus={() => setShowSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+            autoComplete="off"
             className="w-full px-4 py-3 rounded-xl border border-border bg-surface text-foreground placeholder:text-foreground-muted/50 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-shadow disabled:opacity-50"
             placeholder="e.g. Ephemeral"
           />
+          {showSuggestions && suggestions.length > 0 && (
+            <div className="absolute top-[100%] mt-1 left-0 right-0 bg-surface-elevated border border-border rounded-xl shadow-lg z-50 overflow-hidden">
+              <div className="px-4 py-2 text-xs font-semibold text-foreground-muted uppercase tracking-wider bg-surface">
+                Did you mean?
+              </div>
+              {suggestions.map((sug, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => {
+                    setWordInput(sug);
+                    setSuggestions([]);
+                    setShowSuggestions(false);
+                  }}
+                  className="w-full text-left px-4 py-3 hover:bg-surface focus:bg-surface text-foreground transition-colors min-h-[44px]"
+                >
+                  {sug}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {error && (
@@ -125,7 +180,7 @@ export default function AddWordForm({
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || !wordInput.trim()}
           className="w-full flex items-center justify-center space-x-2 bg-accent hover:bg-accent/90 text-accent-foreground px-6 py-3.5 rounded-xl font-medium transition-colors disabled:opacity-70 disabled:cursor-not-allowed shadow-sm"
         >
           {loading ? (

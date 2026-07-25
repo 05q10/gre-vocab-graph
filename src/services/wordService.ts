@@ -21,6 +21,7 @@ export async function createWord(input: CreateWordInput): Promise<Word> {
         example: $example,
         partOfSpeech: $partOfSpeech,
         additionalMeanings: $additionalMeanings,
+        remarks: $remarks,
         embedding: null,
         createdAt: $createdAt,
         userId: $userId
@@ -33,6 +34,7 @@ export async function createWord(input: CreateWordInput): Promise<Word> {
         example: input.example,
         partOfSpeech: input.partOfSpeech,
         additionalMeanings: input.additionalMeanings || null,
+        remarks: input.remarks || null,
         createdAt: new Date().toISOString(),
         userId: input.userId,
       }
@@ -97,6 +99,10 @@ export async function updateWord(
     if (updates.additionalMeanings !== undefined) {
       setClauses.push("w.additionalMeanings = $additionalMeanings");
       params.additionalMeanings = updates.additionalMeanings;
+    }
+    if (updates.remarks !== undefined) {
+      setClauses.push("w.remarks = $remarks");
+      params.remarks = updates.remarks;
     }
 
     if (setClauses.length === 0) {
