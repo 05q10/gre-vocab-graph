@@ -5,9 +5,9 @@ import { driver } from "../src/lib/neo4j";
 
 async function main() {
   const words = [
-    { word: "Aberration" },
-    { word: "Anomaly" },
-    { word: "Ebullient" },
+    { word: "Aberration", userId: "test-user-id" },
+    { word: "Anomaly", userId: "test-user-id" },
+    { word: "Ebullient", userId: "test-user-id" },
   ];
 
   try {
@@ -19,14 +19,14 @@ async function main() {
 
     const target = created.find((w) => w.word.word === "Aberration")!;
     console.log("\nFinding neighbors of 'Aberration':");
-    const neighbors = await findNearestNeighbors(target.word.embedding!, "Aberration", 5);
+    const neighbors = await findNearestNeighbors(target.word.embedding!, "Aberration", "test-user-id", 5);
 
     for (const n of neighbors) {
       console.log(`  ${n.word.word.padEnd(12)} score: ${n.score.toFixed(4)}`);
     }
   } finally {
     for (const w of words) {
-      await deleteWord(w.word);
+      await deleteWord(w.word, "test-user-id");
     }
     await driver.close();
   }
