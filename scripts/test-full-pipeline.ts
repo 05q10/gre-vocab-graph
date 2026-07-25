@@ -2,9 +2,9 @@ import { addWord } from "../src/services/wordPipeline";
 import { driver } from "../src/lib/neo4j";
 
 const seedWords = [
-  { word: "Anomaly" },
-  { word: "Normal" },
-  { word: "Ebullient" },
+  { word: "Anomaly", userId: "test-user-id" },
+  { word: "Normal", userId: "test-user-id" },
+  { word: "Ebullient", userId: "test-user-id" },
 ];
 
 async function main() {
@@ -17,6 +17,7 @@ async function main() {
   console.log("\nAdding target word 'Aberration'...");
   const result = await addWord({
     word: "Aberration",
+    userId: "test-user-id",
   });
   console.log(`  Aberration: ${result.relationshipsCreated} relationships created`);
 
