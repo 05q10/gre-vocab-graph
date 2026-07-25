@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "GRE Vocab Graph",
-  description: "A knowledge graph of GRE vocabulary words and their semantic relationships.",
+  title: "Vocab Graph",
+  description: "A knowledge graph of vocabulary words and their semantic relationships.",
 };
 
 import AuthProvider from "../components/AuthProvider";

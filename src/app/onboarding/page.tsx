@@ -45,7 +45,7 @@ export default function OnboardingPage() {
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-md bg-surface border border-border p-8 rounded-xl shadow-lg">
-        <h1 className="text-2xl font-bold mb-2">Welcome to GRE Vocab Graph!</h1>
+        <h1 className="text-2xl font-bold mb-2">Welcome to Vocab Graph!</h1>
         <p className="text-foreground-muted mb-6">Let's set up your profile before you start building your personal graph.</p>
 
         {error && (

@@ -21,7 +21,7 @@ function buildPrompt(target: Word, candidates: Word[]): string {
     )
     .join("\n");
 
-  return `You are a lexicographer analyzing GRE vocabulary words for semantic relationships.
+  return `You are a lexicographer analyzing vocabulary words for semantic relationships.
 
 TARGET WORD:
 "${target.word}" (${target.partOfSpeech}) — ${target.meaning}
