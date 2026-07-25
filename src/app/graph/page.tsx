@@ -480,11 +480,53 @@ function GraphInner() {
     );
   }
 
+  const renderedNodes = useMemo(() => {
+    if (!selectedWord) {
+      return nodes.map(n => ({
+        ...n,
+        style: { ...n.style, opacity: 1, transition: 'opacity 0.3s ease' }
+      }));
+    }
+    const connectedWords = new Set(connections.map(c => c.word));
+    connectedWords.add(selectedWord.word);
+    
+    return nodes.map(n => {
+      const isConnected = connectedWords.has(n.data.word as string);
+      return {
+        ...n,
+        style: { ...n.style, opacity: isConnected ? 1 : 0.15, transition: 'opacity 0.3s ease' },
+      };
+    });
+  }, [nodes, selectedWord, connections]);
+
+  const renderedEdges = useMemo(() => {
+    if (!selectedWord) {
+      return edges.map(e => ({
+        ...e,
+        style: { ...e.style, opacity: 1, transition: 'opacity 0.3s ease' },
+        labelStyle: { ...e.labelStyle, opacity: 1, fill: getEdgeColor(e.type || 'SYNONYM_OF') },
+        animated: true,
+      }));
+    }
+    
+    const selectedNodeId = nodes.find(n => (n.data.word as string) === selectedWord.word)?.id;
+    
+    return edges.map(e => {
+      const isConnected = e.source === selectedNodeId || e.target === selectedNodeId;
+      return {
+        ...e,
+        style: { ...e.style, opacity: isConnected ? 1 : 0.05, transition: 'opacity 0.3s ease' },
+        labelStyle: { ...e.labelStyle, opacity: isConnected ? 1 : 0.05, fill: getEdgeColor(e.type || 'SYNONYM_OF') },
+        animated: isConnected,
+      };
+    });
+  }, [edges, selectedWord, nodes]);
+
   return (
     <div style={{ width: '100%', height: '100%' }} className="relative bg-background overflow-hidden">
       <ReactFlow
-        nodes={nodes}
-        edges={edges}
+        nodes={renderedNodes}
+        edges={renderedEdges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeClick={onNodeClick}
