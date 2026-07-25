@@ -22,7 +22,8 @@ export async function createWord(input: CreateWordInput): Promise<Word> {
         partOfSpeech: $partOfSpeech,
         additionalMeanings: $additionalMeanings,
         embedding: null,
-        createdAt: $createdAt
+        createdAt: $createdAt,
+        userId: $userId
       })
       RETURN w
       `,
@@ -33,6 +34,7 @@ export async function createWord(input: CreateWordInput): Promise<Word> {
         partOfSpeech: input.partOfSpeech,
         additionalMeanings: input.additionalMeanings || null,
         createdAt: new Date().toISOString(),
+        userId: input.userId,
       }
     );
 
@@ -51,12 +53,12 @@ export async function createWord(input: CreateWordInput): Promise<Word> {
  * Fetches a single word by exact name. Returns null if not found —
  * callers decide whether that's a 404, not this function.
  */
-export async function getWordByName(word: string): Promise<Word | null> {
+export async function getWordByName(word: string, userId: string): Promise<Word | null> {
   const session = driver.session();
   try {
     const result = await session.run(
-      `MATCH (w:Word {word: $word}) RETURN w`,
-      { word }
+      `MATCH (w:Word {word: $word, userId: $userId}) RETURN w`,
+      { word, userId }
     );
     if (result.records.length === 0) return null;
     return result.records[0].get("w").properties as Word;
@@ -72,12 +74,13 @@ export async function getWordByName(word: string): Promise<Word | null> {
  */
 export async function updateWord(
   word: string,
+  userId: string,
   updates: UpdateWordInput
 ): Promise<Word | null> {
   const session = driver.session();
   try {
     const setClauses: string[] = [];
-    const params: Record<string, unknown> = { word };
+    const params: Record<string, unknown> = { word, userId };
 
     if (updates.meaning !== undefined) {
       setClauses.push("w.meaning = $meaning");
@@ -97,12 +100,12 @@ export async function updateWord(
     }
 
     if (setClauses.length === 0) {
-      return getWordByName(word);
+      return getWordByName(word, userId);
     }
 
     const result = await session.run(
       `
-      MATCH (w:Word {word: $word})
+      MATCH (w:Word {word: $word, userId: $userId})
       SET ${setClauses.join(", ")}
       RETURN w
       `,
@@ -120,16 +123,16 @@ export async function updateWord(
  * Deletes a word and all its relationships (DETACH DELETE).
  * Returns true if a node was actually deleted, false if it didn't exist.
  */
-export async function deleteWord(word: string): Promise<boolean> {
+export async function deleteWord(word: string, userId: string): Promise<boolean> {
   const session = driver.session();
   try {
     const result = await session.run(
       `
-      MATCH (w:Word {word: $word})
+      MATCH (w:Word {word: $word, userId: $userId})
       DETACH DELETE w
       RETURN count(w) AS deletedCount
       `,
-      { word }
+      { word, userId }
     );
     return result.records[0].get("deletedCount").toNumber() > 0;
   } finally {
@@ -142,19 +145,19 @@ export async function deleteWord(word: string): Promise<boolean> {
  * This is NOT the semantic/vector search from Phase 9 — this is the
  * plain-text search box on the UI (instant search, Phase 16).
  */
-export async function searchWords(query: string, limit = 10): Promise<Word[]> {
+export async function searchWords(query: string, userId: string, limit = 10): Promise<Word[]> {
   const session = driver.session();
   try {
     const result = await session.run(
       `
-      MATCH (w:Word)
+      MATCH (w:Word {userId: $userId})
       WHERE toLower(w.word) CONTAINS toLower($query)
          OR toLower(w.meaning) CONTAINS toLower($query)
       RETURN w
       ORDER BY w.word
       LIMIT $limit
       `,
-      { query, limit: neo4j.int(Math.floor(limit)) }
+      { query, userId, limit: neo4j.int(Math.floor(limit)) }
     );
     return result.records.map((r) => r.get("w").properties as Word);
   } finally {
@@ -167,16 +170,16 @@ export async function searchWords(query: string, limit = 10): Promise<Word[]> {
  * Separate from createWord so it can also be called when a word's
  * meaning/example is edited later (Phase 17) and the embedding goes stale.
  */
-export async function storeEmbedding(word: string, embedding: number[]): Promise<void> {
+export async function storeEmbedding(word: string, userId: string, embedding: number[]): Promise<void> {
   const session = driver.session();
   try {
     const result = await session.run(
       `
-      MATCH (w:Word {word: $word})
+      MATCH (w:Word {word: $word, userId: $userId})
       SET w.embedding = $embedding
       RETURN w
       `,
-      { word, embedding }
+      { word, userId, embedding }
     );
     if (result.records.length === 0) {
       throw new Error(`Cannot store embedding: word "${word}" not found.`);
@@ -201,6 +204,7 @@ export interface SimilarWord {
 export async function findNearestNeighbors(
   embedding: number[],
   excludeWord: string,
+  userId: string,
   topK = 25
 ): Promise<SimilarWord[]> {
   const session = driver.session();
@@ -209,17 +213,15 @@ export async function findNearestNeighbors(
       `
       CALL db.index.vector.queryNodes('word_embeddings', $topK, $embedding)
       YIELD node, score
-      WHERE node.word <> $excludeWord
+      WHERE node.userId = $userId AND node.word <> $excludeWord
       RETURN node, score
       ORDER BY score DESC
       `,
       {
-        // queryNodes needs a couple more candidates than we want back,
-        // since we filter out excludeWord AFTER the index search —
-        // otherwise a graph with few words could return fewer than topK.
         topK: neo4j.int(Math.floor(topK) + 1),
         embedding,
         excludeWord,
+        userId,
       }
     );
 

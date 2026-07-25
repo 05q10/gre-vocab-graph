@@ -9,7 +9,7 @@ export default function Navbar() {
           <ShareIcon className="h-6 w-6 text-accent" />
           <span className="text-lg font-semibold tracking-tight">VocabGraph</span>
         </div>
-        
+
         <div className="flex items-center space-x-6">
           <Link href="/" className="flex items-center space-x-1 text-sm font-medium text-foreground-muted hover:text-foreground transition-colors">
             <HomeIcon className="h-4 w-4" />
@@ -17,11 +17,11 @@ export default function Navbar() {
           </Link>
           <Link href="/graph" className="flex items-center space-x-1 text-sm font-medium text-foreground-muted hover:text-foreground transition-colors">
             <ShareIcon className="h-4 w-4" />
-            <span>Graph</span>
+            <span>Graph view</span>
           </Link>
           <Link href="/statistics" className="flex items-center space-x-1 text-sm font-medium text-foreground-muted hover:text-foreground transition-colors">
             <ChartBarIcon className="h-4 w-4" />
-            <span>Statistics</span>
+            <span>Statistics - not</span>
           </Link>
         </div>
       </div>

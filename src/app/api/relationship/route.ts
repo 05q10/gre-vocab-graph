@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createRelationship, deleteRelationship } from '../../../services/relationshipService';
 import { RELATIONSHIP_TYPES } from '../../../types/relationship';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../auth/[...nextauth]/route';
 
 export const maxDuration = 60; // Allow up to 60s on Vercel
 
@@ -20,6 +22,12 @@ const deleteRelationshipSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    const sessionUser = await getServerSession(authOptions);
+    if (!sessionUser || !sessionUser.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const userId = sessionUser.user.id;
+
     const body = await request.json();
     const validatedData = createRelationshipSchema.parse(body);
 
@@ -27,7 +35,8 @@ export async function POST(request: Request) {
       validatedData.sourceWord,
       validatedData.targetWord,
       validatedData.type,
-      validatedData.confidence
+      validatedData.confidence,
+      userId
     );
 
     if (success) {
@@ -49,12 +58,19 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
+    const sessionUser = await getServerSession(authOptions);
+    if (!sessionUser || !sessionUser.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const userId = sessionUser.user.id;
+
     const body = await request.json();
     const validatedData = deleteRelationshipSchema.parse(body);
 
     const success = await deleteRelationship(
       validatedData.sourceWord,
       validatedData.targetWord,
+      userId,
       validatedData.type
     );
 

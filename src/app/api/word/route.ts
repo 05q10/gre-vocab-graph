@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { addWord } from '../../../services/wordPipeline';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../auth/[...nextauth]/route';
 
 export const maxDuration = 60; // Allow pipeline up to 60s on Vercel
 
@@ -10,13 +12,18 @@ const createWordSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    const sessionUser = await getServerSession(authOptions);
+    if (!sessionUser || !sessionUser.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const userId = sessionUser.user.id;
     const body = await request.json();
     
     // Validate request body
     const validatedData = createWordSchema.parse(body);
 
     // Add word through pipeline
-    const result = await addWord(validatedData);
+    const result = await addWord({ ...validatedData, userId });
 
     return NextResponse.json(result, { status: 200 });
   } catch (error: any) {

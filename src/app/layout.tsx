@@ -18,6 +18,8 @@ export const metadata: Metadata = {
   description: "A knowledge graph of GRE vocabulary words and their semantic relationships.",
 };
 
+import AuthProvider from "../components/AuthProvider";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -29,8 +31,10 @@ export default function RootLayout({
       className={`dark ${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <Navbar />
-        <main className="flex-1 flex flex-col">{children}</main>
+        <AuthProvider>
+          <Navbar />
+          <main className="flex-1 flex flex-col">{children}</main>
+        </AuthProvider>
       </body>
     </html>
   );

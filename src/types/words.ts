@@ -12,6 +12,7 @@ export interface Word {
   additionalMeanings?: string; // JSON stringified WordMeaning[]
   embedding: number[] | null;
   createdAt: string; // ISO 8601 string, easier to serialize over JSON than a Neo4j DateTime object
+  userId: string;
 }
 
 export interface CreateWordInput {
@@ -20,6 +21,7 @@ export interface CreateWordInput {
   example: string;
   partOfSpeech: string;
   additionalMeanings?: string;
+  userId: string;
 }
 
 export interface UpdateWordInput {

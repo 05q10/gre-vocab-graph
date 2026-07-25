@@ -15,6 +15,7 @@ export interface AddWordResult {
 
 export interface AddWordInput {
   word: string;
+  userId: string;
 }
 
 /**
@@ -37,14 +38,15 @@ export async function addWord(input: AddWordInput): Promise<AddWordResult> {
   
   const word = await createWord({
     word: input.word,
+    userId: input.userId,
     ...generatedDetails
   });
 
   const embeddingInput = buildEmbeddingInput(word.meaning, word.example);
   const embedding = await generateEmbedding(embeddingInput);
-  await storeEmbedding(input.word, embedding);
+  await storeEmbedding(input.word, input.userId, embedding);
 
-  const rawCandidates = await findNearestNeighbors(embedding, input.word, CANDIDATE_POOL_SIZE);
+  const rawCandidates = await findNearestNeighbors(embedding, input.word, input.userId, CANDIDATE_POOL_SIZE);
   // Hard-drop candidates that are too far away in vector space to possibly be related
   const candidates = rawCandidates.filter(c => c.score >= MIN_VECTOR_SIMILARITY);
 
@@ -74,7 +76,7 @@ export async function addWord(input: AddWordInput): Promise<AddWordResult> {
 
   let created = 0;
   for (const rel of deduped.values()) {
-    const success = await createRelationship(input.word, rel.target, rel.type, rel.confidence);
+    const success = await createRelationship(input.word, rel.target, rel.type, rel.confidence, input.userId);
     if (success) created++;
   }
 

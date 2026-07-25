@@ -2,8 +2,16 @@ import { NextResponse } from 'next/server';
 import { driver } from '../../../lib/neo4j';
 import { Word } from '../../../types/words';
 import { RelationshipType } from '../../../types/relationship';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../auth/[...nextauth]/route';
 
 export async function GET() {
+  const sessionUser = await getServerSession(authOptions);
+  if (!sessionUser || !sessionUser.user?.id) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const userId = sessionUser.user.id;
+  
   const session = driver.session();
   try {
     const nodes = new Map<string, { id: string; data: Word }>();
@@ -11,7 +19,8 @@ export async function GET() {
 
     // Query 1: Get words with relationships and the relationships themselves
     const relResult = await session.run(
-      `MATCH (a:Word)-[r]->(b:Word) RETURN a, r, b`
+      `MATCH (a:Word {userId: $userId})-[r]->(b:Word {userId: $userId}) RETURN a, r, b`,
+      { userId }
     );
 
     relResult.records.forEach(record => {
@@ -37,7 +46,8 @@ export async function GET() {
 
     // Query 2: Get isolated nodes
     const isolatedResult = await session.run(
-      `MATCH (a:Word) WHERE NOT (a)--() RETURN a`
+      `MATCH (a:Word {userId: $userId}) WHERE NOT (a)--() RETURN a`,
+      { userId }
     );
 
     isolatedResult.records.forEach(record => {
