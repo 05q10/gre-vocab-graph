@@ -13,10 +13,10 @@ export default async function Home() {
         <div className="w-full max-w-4xl mx-auto space-y-12">
           <div className="text-center space-y-4">
             <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-foreground">
-              GRE Vocabulary Graph
+             Vocabulary Graph
             </h1>
             <p className="text-lg text-foreground-muted max-w-2xl mx-auto">
-              Build your own personal, intelligent semantic network of GRE vocabulary words.
+              Build your own personal, intelligent semantic network of vocabulary words.
               Sign in to start creating your graph!
             </p>
             <div className="pt-4">
