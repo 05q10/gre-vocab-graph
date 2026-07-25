@@ -1,4 +1,4 @@
-import { createWord, storeEmbedding, findNearestNeighbors } from "./wordService";
+import { createWord, storeEmbedding, findNearestNeighbors, getWordByName } from "./wordService";
 import { generateEmbedding, buildEmbeddingInput } from "./embeddingService";
 import { detectRelationships, generateWordDetails } from "./llamaService";
 import { createRelationship } from "./relationshipService";
@@ -34,19 +34,27 @@ export interface AddWordInput {
  * outcome, not an error.
  */
 export async function addWord(input: AddWordInput): Promise<AddWordResult> {
-  const generatedDetails = await generateWordDetails(input.word);
+  const normalizedWord = input.word.trim().toLowerCase();
+  
+  // Check for duplicates before paying for LLM call
+  const existingWord = await getWordByName(normalizedWord, input.userId);
+  if (existingWord) {
+    throw new Error(`Word "${normalizedWord}" already exists.`);
+  }
+
+  const generatedDetails = await generateWordDetails(normalizedWord);
   
   const word = await createWord({
-    word: input.word,
+    word: normalizedWord,
     userId: input.userId,
     ...generatedDetails
   });
 
   const embeddingInput = buildEmbeddingInput(word.meaning, word.example);
   const embedding = await generateEmbedding(embeddingInput);
-  await storeEmbedding(input.word, input.userId, embedding);
+  await storeEmbedding(normalizedWord, input.userId, embedding);
 
-  const rawCandidates = await findNearestNeighbors(embedding, input.word, input.userId, CANDIDATE_POOL_SIZE);
+  const rawCandidates = await findNearestNeighbors(embedding, normalizedWord, input.userId, CANDIDATE_POOL_SIZE);
   // Hard-drop candidates that are too far away in vector space to possibly be related
   const candidates = rawCandidates.filter(c => c.score >= MIN_VECTOR_SIMILARITY);
 
@@ -76,7 +84,7 @@ export async function addWord(input: AddWordInput): Promise<AddWordResult> {
 
   let created = 0;
   for (const rel of deduped.values()) {
-    const res = await createRelationship(input.word, rel.target, rel.type, rel.confidence, input.userId);
+    const res = await createRelationship(normalizedWord, rel.target, rel.type, rel.confidence, input.userId);
     if (res.success && res.isNew) created++;
   }
 
