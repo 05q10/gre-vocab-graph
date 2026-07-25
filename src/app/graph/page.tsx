@@ -564,7 +564,7 @@ function GraphInner() {
       {/* Floating Action Button (Add Word) */}
       <button
         onClick={() => setIsAddModalOpen(true)}
-        className={`absolute bottom-6 z-30 p-4 bg-accent hover:bg-accent/90 text-accent-foreground rounded-full shadow-lg transition-all duration-300 hover:scale-105 ${
+        className={`absolute bottom-6 z-[45] p-4 bg-accent hover:bg-accent/90 text-accent-foreground rounded-full shadow-lg transition-all duration-300 hover:scale-105 ${
           selectedWord ? 'right-6 sm:right-[344px] md:right-[408px]' : 'right-6'
         }`}
         aria-label="Add Word"
@@ -575,7 +575,7 @@ function GraphInner() {
       {/* Floating Action Button (Ask AI) */}
       <button
         onClick={() => setIsNlpOpen(true)}
-        className={`absolute bottom-24 z-30 p-4 bg-surface-elevated hover:bg-surface border border-accent/30 text-accent rounded-full shadow-lg transition-all duration-300 hover:scale-105 ${
+        className={`absolute bottom-24 z-[45] p-4 bg-surface-elevated hover:bg-surface border border-accent/30 text-accent rounded-full shadow-lg transition-all duration-300 hover:scale-105 ${
           selectedWord ? 'right-6 sm:right-[344px] md:right-[408px]' : 'right-6'
         }`}
         aria-label="Ask AI"
@@ -735,7 +735,7 @@ function GraphInner() {
 
 export default function GraphPage() {
   return (
-    <div style={{ width: '100vw', height: 'calc(100vh - 64px)' }} className="relative">
+    <div style={{ width: '100vw', height: 'calc(100dvh - 64px)' }} className="relative">
       <ReactFlowProvider>
         <GraphInner />
       </ReactFlowProvider>
