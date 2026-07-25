@@ -24,13 +24,19 @@ export const authOptions: NextAuthOptions = {
       }
       return true;
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
+      // Initial sign in
       if (user && user.email) {
         token.id = user.email;
-        // Optionally fetch user from DB to check if onboarding is complete
         const dbUser = await getUserById(user.email);
         token.onboardingComplete = !!(dbUser?.gradeOrAge && dbUser?.purpose);
       }
+      
+      // When update() is called on the client
+      if (trigger === "update" && session) {
+        token.onboardingComplete = session.onboardingComplete;
+      }
+      
       return token;
     },
     async session({ session, token }) {

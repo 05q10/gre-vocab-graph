@@ -3,6 +3,14 @@ import { driver } from "../src/lib/neo4j";
 async function initSchema() {
   const session = driver.session();
   try {
+    try {
+      await session.run(`DROP CONSTRAINT word_unique IF EXISTS`);
+      console.log("✓ Old global uniqueness constraint on Word.word dropped");
+    } catch (e: any) {
+      // Ignore if it doesn't exist or other minor errors
+      console.log("Old constraint drop skipped or didn't exist");
+    }
+
     await session.run(`
       CREATE CONSTRAINT word_user_unique IF NOT EXISTS
       FOR (w:Word) REQUIRE (w.word, w.userId) IS UNIQUE

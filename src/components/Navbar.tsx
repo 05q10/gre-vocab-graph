@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { HomeIcon, ShareIcon, ChartBarIcon } from '@heroicons/react/24/outline';
+import UserMenu from './UserMenu';
 
 export default function Navbar() {
   return (
@@ -23,6 +24,11 @@ export default function Navbar() {
             <ChartBarIcon className="h-4 w-4" />
             <span>Statistics - not</span>
           </Link>
+          
+          {/* User Profile Menu */}
+          <div className="pl-4 border-l border-border flex items-center">
+            <UserMenu />
+          </div>
         </div>
       </div>
     </nav>
