@@ -458,27 +458,7 @@ function GraphInner() {
     }
   };
 
-  if (loading) {
-    return <div className="flex-1 flex items-center justify-center">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>
-    </div>;
-  }
 
-  if (error) {
-    return <div className="flex-1 flex items-center justify-center text-antonym">{error}</div>;
-  }
-
-  if (nodes.length === 0) {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center p-4">
-        <h2 className="text-2xl font-bold text-foreground mb-2">No words added yet</h2>
-        <p className="text-foreground-muted mb-6">Add your first word to get started with the knowledge graph.</p>
-        <Link href="/" className="bg-accent hover:bg-accent/90 text-accent-foreground px-6 py-3 rounded-xl font-medium transition-colors">
-          Go to Home
-        </Link>
-      </div>
-    );
-  }
 
   const renderedNodes = useMemo(() => {
     if (!selectedWord) {
@@ -521,6 +501,28 @@ function GraphInner() {
       };
     });
   }, [edges, selectedWord, nodes]);
+
+  if (loading) {
+    return <div className="flex-1 flex items-center justify-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>
+    </div>;
+  }
+
+  if (error) {
+    return <div className="flex-1 flex items-center justify-center text-antonym">{error}</div>;
+  }
+
+  if (nodes.length === 0) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-4">
+        <h2 className="text-2xl font-bold text-foreground mb-2">No words added yet</h2>
+        <p className="text-foreground-muted mb-6">Add your first word to get started with the knowledge graph.</p>
+        <Link href="/" className="bg-accent hover:bg-accent/90 text-accent-foreground px-6 py-3 rounded-xl font-medium transition-colors">
+          Go to Home
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div style={{ width: '100%', height: '100%' }} className="relative bg-background overflow-hidden">
