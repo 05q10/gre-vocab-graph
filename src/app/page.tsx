@@ -40,7 +40,7 @@ export default async function Home() {
             Your Vocabulary Graph
           </h1>
           <p className="text-lg text-foreground-muted max-w-2xl mx-auto">
-            Welcome back, {session.user.name?.split(' ')[0]}! Add a word, and our  pipeline will automatically detect and create relationships with existing words in your personal graph.
+            Welcome back, {session.user.name?.split(' ')[0]}! Add a word, and our pipeline will automatically detect and create relationships with existing words in your personal graph.
           </p>
         </div>
 
