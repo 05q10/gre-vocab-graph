@@ -13,7 +13,7 @@ export default async function Home() {
         <div className="w-full max-w-4xl mx-auto space-y-12">
           <div className="text-center space-y-4">
             <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-foreground">
-             Vocabulary Graph
+              Vocabulary Graph
             </h1>
             <p className="text-lg text-foreground-muted max-w-2xl mx-auto">
               Build your own personal, intelligent semantic network of vocabulary words.
@@ -40,10 +40,10 @@ export default async function Home() {
             Your Vocabulary Graph
           </h1>
           <p className="text-lg text-foreground-muted max-w-2xl mx-auto">
-            Welcome back, {session.user.name?.split(' ')[0]}! Add a word, and our AI pipeline will automatically detect and create relationships with existing words in your personal graph.
+            Welcome back, {session.user.name?.split(' ')[0]}! Add a word, and our  pipeline will automatically detect and create relationships with existing words in your personal graph.
           </p>
         </div>
-        
+
         <AddWordForm />
       </div>
     </div>

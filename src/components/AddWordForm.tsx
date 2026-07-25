@@ -93,7 +93,7 @@ export default function AddWordForm({
     <div className="bg-surface-elevated rounded-2xl shadow-sm border border-border p-6 md:p-8 max-w-2xl mx-auto">
       <div className="mb-8">
         <h2 className="text-2xl font-bold text-foreground">Add Word</h2>
-        <p className="text-foreground-muted mt-1">Just type the word — our AI will automatically define it and map its semantic relationships in the graph.</p>
+        <p className="text-foreground-muted mt-1">Just type the word — we will automatically define it and map its semantic relationships in the graph.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
