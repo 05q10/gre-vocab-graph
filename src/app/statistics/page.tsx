@@ -71,22 +71,16 @@ export default function StatisticsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <div className="flex items-center justify-center h-[calc(100vh-64px)]">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>
-        </div>
+      <div className="flex items-center justify-center h-[calc(100vh-64px)]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>
       </div>
     );
   }
 
   if (error || !stats) {
     return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <div className="flex items-center justify-center h-[calc(100vh-64px)] text-antonym">
-          {error || 'Failed to load'}
-        </div>
+      <div className="flex items-center justify-center h-[calc(100vh-64px)] text-antonym">
+        {error || 'Failed to load'}
       </div>
     );
   }
@@ -95,8 +89,7 @@ export default function StatisticsPage() {
   const heatmapData = generateHeatmap(stats.activity, 140);
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <Navbar />
+    <div className="text-foreground">
       <main className="container mx-auto px-4 py-8 max-w-5xl">
         <h1 className="text-3xl font-bold mb-8">Your Knowledge Statistics</h1>
         
