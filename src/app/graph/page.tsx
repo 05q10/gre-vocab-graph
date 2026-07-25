@@ -427,7 +427,7 @@ function GraphInner() {
         <Background color="var(--border-strong)" gap={16} />
         <Controls className="!bg-surface-elevated !border-border !fill-foreground" />
         
-        <Panel position="top-center" className="bg-surface-elevated p-3 rounded-xl shadow-md border border-border w-72 md:w-80 m-4 z-10">
+        <Panel position="top-center" className="bg-surface-elevated p-3 rounded-xl shadow-md border border-border w-[calc(100vw-2rem)] sm:w-80 max-w-sm m-4 z-10">
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <MagnifyingGlassIcon className="h-4 w-4 text-foreground-muted" />
@@ -470,8 +470,8 @@ function GraphInner() {
       {/* Floating Action Button */}
       <button
         onClick={() => setIsAddModalOpen(true)}
-        className={`absolute bottom-6 z-10 p-4 bg-accent hover:bg-accent/90 text-accent-foreground rounded-full shadow-lg transition-all duration-300 hover:scale-105 ${
-          selectedWord ? 'right-[344px] md:right-[408px]' : 'right-6'
+        className={`absolute bottom-6 z-30 p-4 bg-accent hover:bg-accent/90 text-accent-foreground rounded-full shadow-lg transition-all duration-300 hover:scale-105 ${
+          selectedWord ? 'right-6 sm:right-[344px] md:right-[408px]' : 'right-6'
         }`}
         aria-label="Add Word"
       >

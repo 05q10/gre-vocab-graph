@@ -14,15 +14,15 @@ export default function Navbar() {
         <div className="flex items-center space-x-6">
           <Link href="/" className="flex items-center space-x-1 text-sm font-medium text-foreground-muted hover:text-foreground transition-colors">
             <HomeIcon className="h-4 w-4" />
-            <span>Home</span>
+            <span className="hidden sm:inline">Home</span>
           </Link>
           <Link href="/graph" className="flex items-center space-x-1 text-sm font-medium text-foreground-muted hover:text-foreground transition-colors">
             <ShareIcon className="h-4 w-4" />
-            <span>Graph view</span>
+            <span className="hidden sm:inline">Graph view</span>
           </Link>
           <Link href="/statistics" className="flex items-center space-x-1 text-sm font-medium text-foreground-muted hover:text-foreground transition-colors">
             <ChartBarIcon className="h-4 w-4" />
-            <span>Statistics - not</span>
+            <span className="hidden sm:inline">Statistics</span>
           </Link>
           
           {/* User Profile Menu */}
