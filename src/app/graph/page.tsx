@@ -20,7 +20,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import dagre from 'dagre';
-import { MagnifyingGlassIcon, PlusIcon, XMarkIcon, CheckCircleIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon, PlusIcon, XMarkIcon, CheckCircleIcon, InformationCircleIcon, SparklesIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline';
 import GraphSidebar from '../../components/GraphSidebar';
 import AddWordForm from '../../components/AddWordForm';
 import { Word } from '../../types/words';
@@ -109,6 +109,10 @@ function GraphInner() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLegendOpen, setIsLegendOpen] = useState(false);
+  
+  const [isNlpOpen, setIsNlpOpen] = useState(false);
+  const [nlpPrompt, setNlpPrompt] = useState('');
+  const [isNlpLoading, setIsNlpLoading] = useState(false);
   
   const [selectedWord, setSelectedWord] = useState<Word | null>(null);
   const [connections, setConnections] = useState<{ word: string; type: RelationshipType }[]>([]);
@@ -383,6 +387,55 @@ function GraphInner() {
     }
   };
 
+  const handleNlpSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!nlpPrompt.trim()) return;
+    setIsNlpLoading(true);
+    try {
+      const res = await fetch('/api/nlp', { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: nlpPrompt }) 
+      });
+      const data = await res.json();
+      
+      if (!data.success) {
+        setSuccessToast({ message: data.message || 'Failed to process command.' });
+        setTimeout(() => setSuccessToast(null), 4000);
+      } else if (data.type === 'COMMAND') {
+        setSuccessToast({ message: data.message });
+        setTimeout(() => setSuccessToast(null), 6000);
+        await fetchData();
+        setIsNlpOpen(false);
+        setNlpPrompt('');
+      } else if (data.type === 'QUERY') {
+        setSuccessToast({ message: data.message });
+        setTimeout(() => setSuccessToast(null), 4000);
+        const queryWords = new Set((data.results || []).map((w: string) => w.toLowerCase()));
+        
+        setNodes((nds) => {
+          let found = false;
+          return nds.map((n) => {
+            const isMatch = queryWords.has((n.data.word as string).toLowerCase());
+            if (isMatch && !found) {
+              found = true;
+              setCenter(n.position.x + 70, n.position.y + 30, { zoom: 1.2, duration: 800 });
+            }
+            return { ...n, data: { ...n.data, highlighted: isMatch } };
+          });
+        });
+        
+        setIsNlpOpen(false);
+        setNlpPrompt('');
+      }
+    } catch (err) {
+      setSuccessToast({ message: 'Network error connecting to NLP service.' });
+      setTimeout(() => setSuccessToast(null), 4000);
+    } finally {
+      setIsNlpLoading(false);
+    }
+  };
+
   if (loading) {
     return <div className="flex-1 flex items-center justify-center">
       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>
@@ -485,7 +538,7 @@ function GraphInner() {
         onUpdateRemarks={handleUpdateRemarks}
       />
 
-      {/* Floating Action Button */}
+      {/* Floating Action Button (Add Word) */}
       <button
         onClick={() => setIsAddModalOpen(true)}
         className={`absolute bottom-6 z-30 p-4 bg-accent hover:bg-accent/90 text-accent-foreground rounded-full shadow-lg transition-all duration-300 hover:scale-105 ${
@@ -495,6 +548,68 @@ function GraphInner() {
       >
         <PlusIcon className="w-6 h-6" />
       </button>
+
+      {/* Floating Action Button (Ask AI) */}
+      <button
+        onClick={() => setIsNlpOpen(true)}
+        className={`absolute bottom-24 z-30 p-4 bg-surface-elevated hover:bg-surface border border-accent/30 text-accent rounded-full shadow-lg transition-all duration-300 hover:scale-105 ${
+          selectedWord ? 'right-6 sm:right-[344px] md:right-[408px]' : 'right-6'
+        }`}
+        aria-label="Ask AI"
+      >
+        <SparklesIcon className="w-6 h-6" />
+      </button>
+
+      {/* NLP Prompt Modal */}
+      {isNlpOpen && (
+        <div className="absolute inset-0 z-50 flex items-start justify-center pt-24 p-4 bg-background/80 backdrop-blur-sm">
+          <div className="relative w-full max-w-2xl bg-surface-elevated rounded-2xl shadow-2xl border border-accent/30 p-6 animate-in fade-in zoom-in-95 duration-200">
+            <button 
+              onClick={() => setIsNlpOpen(false)}
+              className="absolute top-4 right-4 p-2 text-foreground-muted hover:text-foreground transition-colors"
+              aria-label="Close NLP prompt"
+            >
+              <XMarkIcon className="w-5 h-5" />
+            </button>
+            <div className="flex items-center gap-2 mb-4">
+              <SparklesIcon className="w-5 h-5 text-accent" />
+              <h2 className="text-lg font-bold text-foreground">Ask AI or Command Graph</h2>
+            </div>
+            <form onSubmit={handleNlpSubmit}>
+              <div className="relative">
+                <textarea
+                  value={nlpPrompt}
+                  onChange={(e) => setNlpPrompt(e.target.value)}
+                  placeholder="e.g. 'daunting is a synonym of intimidating' or 'words that mean elated'"
+                  className="w-full bg-surface border border-border rounded-xl px-4 py-3 pr-12 text-foreground focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent resize-none h-24"
+                  disabled={isNlpLoading}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleNlpSubmit(e);
+                    }
+                  }}
+                  autoFocus
+                />
+                <button
+                  type="submit"
+                  disabled={isNlpLoading || !nlpPrompt.trim()}
+                  className="absolute bottom-3 right-3 p-2 bg-accent text-accent-foreground rounded-lg hover:bg-accent/90 disabled:opacity-50 disabled:hover:bg-accent transition-colors"
+                >
+                  {isNlpLoading ? (
+                    <div className="w-5 h-5 border-2 border-accent-foreground border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <PaperAirplaneIcon className="w-5 h-5" />
+                  )}
+                </button>
+              </div>
+            </form>
+            <p className="text-xs text-foreground-muted mt-3">
+              {isNlpLoading ? 'Processing your request... (ingesting new words may take a moment)' : 'Press Enter to submit. You can create edges or search the graph using plain English.'}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Add Word Modal */}
       {isAddModalOpen && (

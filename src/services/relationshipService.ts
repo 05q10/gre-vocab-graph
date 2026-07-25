@@ -24,7 +24,7 @@ export async function createRelationship(
   type: RelationshipType,
   confidence: number,
   userId: string
-): Promise<boolean> {
+): Promise<{ success: boolean; isNew: boolean }> {
   const session = driver.session();
   try {
     const result = await session.run(
@@ -32,8 +32,9 @@ export async function createRelationship(
       MATCH (source:Word {word: $sourceWord, userId: $userId})
       MATCH (target:Word {word: $targetWord, userId: $userId})
       MERGE (source)-[r:${type}]->(target)
-      SET r.confidence = $confidence, r.createdAt = coalesce(r.createdAt, $now)
-      RETURN r
+      ON CREATE SET r.confidence = $confidence, r.createdAt = $now, r.isNew = true
+      ON MATCH SET r.confidence = $confidence, r.isNew = false
+      RETURN r.isNew AS isNew
       `,
       {
         sourceWord,
@@ -43,7 +44,10 @@ export async function createRelationship(
         userId,
       }
     );
-    return result.records.length > 0;
+    if (result.records.length > 0) {
+      return { success: true, isNew: result.records[0].get("isNew") as boolean };
+    }
+    return { success: false, isNew: false };
   } finally {
     await session.close();
   }

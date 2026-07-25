@@ -76,8 +76,8 @@ export async function addWord(input: AddWordInput): Promise<AddWordResult> {
 
   let created = 0;
   for (const rel of deduped.values()) {
-    const success = await createRelationship(input.word, rel.target, rel.type, rel.confidence, input.userId);
-    if (success) created++;
+    const res = await createRelationship(input.word, rel.target, rel.type, rel.confidence, input.userId);
+    if (res.success && res.isNew) created++;
   }
 
   return { word: { ...word, embedding }, relationshipsCreated: created };
