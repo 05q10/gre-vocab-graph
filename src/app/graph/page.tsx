@@ -20,7 +20,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import dagre from 'dagre';
-import { MagnifyingGlassIcon, PlusIcon, XMarkIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon, PlusIcon, XMarkIcon, CheckCircleIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
 import GraphSidebar from '../../components/GraphSidebar';
 import AddWordForm from '../../components/AddWordForm';
 import { Word } from '../../types/words';
@@ -54,8 +54,6 @@ const getEdgeColor = (type: string) => {
     case 'ANTONYM_OF': return 'var(--rel-antonym)';
     case 'SIMILAR_TO': return 'var(--rel-similar)';
     case 'CONFUSED_WITH': return 'var(--rel-confused)';
-    case 'ROOT_RELATED': return 'var(--rel-root)';
-    case 'DERIVED_FROM': return 'var(--rel-derived)';
     case 'RELATED_TO': return 'var(--rel-related)';
     default: return 'var(--border-strong)';
   }
@@ -69,8 +67,6 @@ const LEGEND_ITEMS = [
   { type: 'SIMILAR_TO', color: 'var(--rel-similar)', desc: 'Overlapping meaning, but distinct' },
   { type: 'RELATED_TO', color: 'var(--rel-related)', desc: 'Shares a broad topic or theme' },
   { type: 'CONFUSED_WITH', color: 'var(--rel-confused)', desc: 'Mistaken identity / sound-alikes' },
-  { type: 'ROOT_RELATED', color: 'var(--rel-root)', desc: 'Shares a Latin/Greek root' },
-  { type: 'DERIVED_FROM', color: 'var(--rel-derived)', desc: 'Built from the same base word' },
 ];
 
 const getLayoutedElements = (nodes: any[], edges: any[], direction = 'TB') => {
@@ -112,6 +108,7 @@ function GraphInner() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isLegendOpen, setIsLegendOpen] = useState(false);
   
   const [selectedWord, setSelectedWord] = useState<Word | null>(null);
   const [connections, setConnections] = useState<{ word: string; type: RelationshipType }[]>([]);
@@ -442,21 +439,42 @@ function GraphInner() {
           </div>
         </Panel>
 
-        <Panel position="bottom-left" className="bg-surface-elevated p-4 rounded-xl shadow-md border border-border m-4 z-10 hidden md:block max-w-xs">
-          <h3 className="text-sm font-bold text-foreground mb-3">Relationship Guide</h3>
-          <div className="space-y-2.5">
-            {LEGEND_ITEMS.map((item) => (
-              <div key={item.type} className="flex items-start gap-2.5">
-                <div className="w-3 h-3 rounded-full mt-0.5 flex-shrink-0" style={{ backgroundColor: item.color }} />
-                <div>
-                  <div className="text-[11px] font-bold text-foreground leading-none mb-1">{item.type.replace('_', ' ')}</div>
-                  <div className="text-[10px] text-foreground-muted leading-tight">{item.desc}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Panel>
+        {/* Legend Button and Panel are rendered outside ReactFlow to allow standard absolute positioning */}
       </ReactFlow>
+
+      {/* Legend Toggle Button */}
+      <button 
+        onClick={() => setIsLegendOpen(true)}
+        className={`absolute bottom-[100px] left-6 z-20 p-3 bg-surface-elevated border border-border shadow-md rounded-full text-foreground hover:text-accent transition-transform duration-300 ${isLegendOpen ? 'scale-0 opacity-0' : 'scale-100 opacity-100'}`}
+        aria-label="Open Legend"
+      >
+        <InformationCircleIcon className="w-6 h-6" />
+      </button>
+
+      {/* Sliding Legend Panel */}
+      <div 
+        className={`absolute bottom-6 left-6 z-30 bg-surface-elevated p-4 rounded-xl shadow-xl border border-border w-64 md:w-72 transition-transform duration-300 ease-in-out ${isLegendOpen ? 'translate-x-0 opacity-100' : '-translate-x-[150%] opacity-0 pointer-events-none'}`}
+      >
+        <button 
+          onClick={() => setIsLegendOpen(false)} 
+          className="absolute top-3 right-3 text-foreground-muted hover:text-foreground transition-colors"
+          aria-label="Close Legend"
+        >
+          <XMarkIcon className="w-5 h-5" />
+        </button>
+        <h3 className="text-sm font-bold text-foreground mb-4">Relationship Guide</h3>
+        <div className="space-y-3">
+          {LEGEND_ITEMS.map((item) => (
+            <div key={item.type} className="flex items-start gap-3">
+              <div className="w-3.5 h-3.5 rounded-full mt-0.5 flex-shrink-0" style={{ backgroundColor: item.color }} />
+              <div>
+                <div className="text-[11px] font-bold text-foreground leading-none mb-1">{item.type.replace('_', ' ')}</div>
+                <div className="text-[10px] text-foreground-muted leading-snug">{item.desc}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
 
       <GraphSidebar 
         word={selectedWord} 

@@ -3,10 +3,9 @@ export const RELATIONSHIP_TYPES = [
   "ANTONYM_OF",
   "SIMILAR_TO",
   "CONFUSED_WITH",
-  "ROOT_RELATED",
-  "DERIVED_FROM",
   "RELATED_TO",
 ] as const;
+
 
 export type RelationshipType = (typeof RELATIONSHIP_TYPES)[number];
 

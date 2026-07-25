@@ -35,8 +35,6 @@ For each candidate that has a genuine relationship to the target, classify it us
 - ANTONYM_OF: means the opposite
 - SIMILAR_TO: overlapping meaning and could sometimes substitute for each other, but with a clear shade of difference (NOT for words that are opposites, unrelated, or merely in the same topic area)
 - CONFUSED_WITH: commonly mistaken for the target due to spelling/sound, despite having a different meaning
-- ROOT_RELATED: shares a Latin/Greek root or morpheme with the target
-- DERIVED_FROM: one word is morphologically built from the other (e.g. a prefix/suffix added)
 - RELATED_TO: belongs to the same general theme, domain, or category as the target, without close meaning overlap — use this instead of SIMILAR_TO whenever the connection is topical rather than a near-match in meaning
 
 Do not use SIMILAR_TO for words that are opposites of each other — use ANTONYM_OF for those, even if they also share a topic.

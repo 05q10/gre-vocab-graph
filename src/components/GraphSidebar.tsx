@@ -23,8 +23,6 @@ const getRelBadgeClasses = (type: RelationshipType) => {
     case 'ANTONYM_OF': return 'bg-antonym/10 text-antonym border-antonym/20';
     case 'SIMILAR_TO': return 'bg-similar/10 text-similar border-similar/20';
     case 'CONFUSED_WITH': return 'bg-confused/10 text-confused border-confused/20';
-    case 'ROOT_RELATED': return 'bg-root/10 text-root border-root/20';
-    case 'DERIVED_FROM': return 'bg-derived/10 text-derived border-derived/20';
     case 'RELATED_TO': return 'bg-related/10 text-related border-related/20';
     default: return 'bg-surface text-foreground border-border';
   }
