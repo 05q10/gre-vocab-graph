@@ -387,6 +387,28 @@ function GraphInner() {
     }
   };
 
+  const handleDeleteWord = async (wordToDelete: string) => {
+    try {
+      const res = await fetch('/api/word', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ word: wordToDelete })
+      });
+      if (res.ok) {
+        setSuccessToast({ message: `Successfully deleted "${wordToDelete}".` });
+        setTimeout(() => setSuccessToast(null), 4000);
+        setSelectedWord(null);
+        fetchData();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to delete word');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Network error deleting word');
+    }
+  };
+
   const handleNlpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nlpPrompt.trim()) return;
@@ -536,6 +558,7 @@ function GraphInner() {
         onNavigateToWord={onNavigateToWord}
         onDeleteRelationship={handleDeleteRelationshipFromSidebar}
         onUpdateRemarks={handleUpdateRemarks}
+        onDeleteWord={handleDeleteWord}
       />
 
       {/* Floating Action Button (Add Word) */}

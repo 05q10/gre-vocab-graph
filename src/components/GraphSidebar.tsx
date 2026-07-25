@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { XMarkIcon, MinusCircleIcon, CheckIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, MinusCircleIcon, CheckIcon, ArrowPathIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { Word } from '../types/words';
 import { RelationshipType } from '../types/relationship';
 
@@ -15,6 +15,7 @@ interface GraphSidebarProps {
   onNavigateToWord: (word: string) => void;
   onDeleteRelationship: (word: string, type: RelationshipType) => void;
   onUpdateRemarks?: (word: string, remarks: string) => void;
+  onDeleteWord: (word: string) => void;
 }
 
 const getRelBadgeClasses = (type: RelationshipType) => {
@@ -32,7 +33,7 @@ const formatRelType = (type: string) => {
   return type.replace('_', ' ').toLowerCase();
 };
 
-export default function GraphSidebar({ word, connections, onClose, onNavigateToWord, onDeleteRelationship, onUpdateRemarks }: GraphSidebarProps) {
+export default function GraphSidebar({ word, connections, onClose, onNavigateToWord, onDeleteRelationship, onUpdateRemarks, onDeleteWord }: GraphSidebarProps) {
   const [remarks, setRemarks] = useState('');
   const [isSavingRemarks, setIsSavingRemarks] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -69,13 +70,26 @@ export default function GraphSidebar({ word, connections, onClose, onNavigateToW
   return (
     <div className="fixed top-16 bottom-0 right-0 w-full sm:w-80 md:w-96 bg-surface-elevated border-l border-border shadow-2xl flex flex-col z-40 transform transition-transform duration-300 ease-in-out">
       <div className="flex items-center justify-between p-4 border-b border-border">
-        <h2 className="text-xl font-bold text-foreground">{word.word}</h2>
-        <button
-          onClick={onClose}
-          className="p-2 rounded-full hover:bg-surface text-foreground-muted hover:text-foreground transition-colors"
-        >
-          <XMarkIcon className="h-5 w-5" />
-        </button>
+        <h2 className="text-xl font-bold text-foreground truncate mr-2">{word.word}</h2>
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            onClick={() => {
+              if (confirm(`Are you sure you want to completely delete "${word.word}" from the graph? This action cannot be undone.`)) {
+                onDeleteWord(word.word);
+              }
+            }}
+            className="p-2 rounded-full hover:bg-antonym/10 text-foreground-muted hover:text-antonym transition-colors"
+            title="Delete Word"
+          >
+            <TrashIcon className="h-5 w-5" />
+          </button>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-full hover:bg-surface text-foreground-muted hover:text-foreground transition-colors"
+          >
+            <XMarkIcon className="h-5 w-5" />
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-6">

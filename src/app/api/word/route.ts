@@ -78,3 +78,29 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: error?.message || 'Internal server error' }, { status: 500 });
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    const sessionUser = await getServerSession(authOptions);
+    if (!sessionUser || !sessionUser.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const userId = sessionUser.user.id;
+    const body = await request.json();
+    
+    if (!body.word) {
+      return NextResponse.json({ error: 'Word is required' }, { status: 400 });
+    }
+
+    const { deleteWord } = await import('../../../services/wordService');
+    const deleted = await deleteWord(body.word, userId);
+    
+    if (!deleted) {
+      return NextResponse.json({ error: 'Word not found' }, { status: 404 });
+    }
+    return NextResponse.json({ success: true }, { status: 200 });
+  } catch (error: any) {
+    console.error('Error deleting word:', error);
+    return NextResponse.json({ error: error?.message || 'Internal server error' }, { status: 500 });
+  }
+}
