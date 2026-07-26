@@ -20,14 +20,13 @@ export async function createUser(input: CreateUserInput): Promise<User> {
   try {
     const result = await session.run(
       `
-      CREATE (u:User {
-        id: $id,
-        name: $name,
-        email: $email,
-        gradeOrAge: $gradeOrAge,
-        purpose: $purpose,
-        createdAt: $createdAt
-      })
+      MERGE (u:User {id: $id})
+      ON CREATE SET
+        u.name = $name,
+        u.email = $email,
+        u.gradeOrAge = $gradeOrAge,
+        u.purpose = $purpose,
+        u.createdAt = $createdAt
       RETURN u
       `,
       {

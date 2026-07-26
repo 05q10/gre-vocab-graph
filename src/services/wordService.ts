@@ -46,7 +46,8 @@ export async function linkWordToUser(word: string, userId: string, remarks?: str
     const result = await session.run(
       `
       MATCH (w:Word {word: $word})
-      MERGE (u:User {id: $userId})-[r:LEARNING]->(w)
+      MATCH (u:User {id: $userId})
+      MERGE (u)-[r:LEARNING]->(w)
       ON CREATE SET 
         r.remarks = $remarks,
         r.addedAt = $addedAt
