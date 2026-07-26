@@ -75,7 +75,7 @@ export async function POST(request: Request) {
           const tgtNode = await getWordByName(tgt, userId);
           
           if (srcNode && tgtNode) {
-            const res = await createRelationship(srcNode.word, tgtNode.word, edge.type, 1.0, userId);
+            const res = await createRelationship(srcNode.word, tgtNode.word, edge.type, 1.0);
             if (res.success && res.isNew) {
               createdEdges++;
             } else if (res.success && !res.isNew) {
@@ -113,7 +113,9 @@ export async function POST(request: Request) {
           // Symmetric query for the specific relationship
           const result = await session.run(
             `
-            MATCH (w1:Word {userId: $userId})-[r:${intent.relationship}]-(w2:Word {userId: $userId})
+            MATCH (u:User {id: $userId})-[:LEARNING]->(w1:Word)
+            MATCH (u)-[:LEARNING]->(w2:Word)
+            MATCH (w1)-[r:${intent.relationship}]-(w2)
             WHERE toLower(w1.word) = toLower($sourceWord)
             RETURN w2
             LIMIT $limit
@@ -147,7 +149,7 @@ export async function POST(request: Request) {
         try {
            const embedding = await generateEmbedding(intent.queryText);
            // We can use findNearestNeighbors. It requires an excludeWord, we pass empty string so nothing is excluded.
-           const results = await findNearestNeighbors(embedding, "", userId, limit);
+           const results = await findNearestNeighbors(embedding, "", limit);
            const words = results.map(r => r.word.word);
            
            if (words.length === 0) {

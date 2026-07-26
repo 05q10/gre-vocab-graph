@@ -19,7 +19,7 @@ async function main() {
 
     const target = created.find((w) => w.word.word === "Aberration")!;
     console.log("\nFinding neighbors of 'Aberration':");
-    const neighbors = await findNearestNeighbors(target.word.embedding!, "Aberration", "test-user-id", 5);
+    const neighbors = await findNearestNeighbors(target.word.embedding!, "Aberration", 5);
 
     for (const n of neighbors) {
       console.log(`  ${n.word.word.padEnd(12)} score: ${n.score.toFixed(4)}`);

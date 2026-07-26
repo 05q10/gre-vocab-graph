@@ -35,8 +35,7 @@ export async function POST(request: Request) {
       validatedData.sourceWord,
       validatedData.targetWord,
       validatedData.type,
-      validatedData.confidence,
-      userId
+      validatedData.confidence
     );
 
     if (success) {
@@ -70,7 +69,6 @@ export async function DELETE(request: Request) {
     const success = await deleteRelationship(
       validatedData.sourceWord,
       validatedData.targetWord,
-      userId,
       validatedData.type
     );
 

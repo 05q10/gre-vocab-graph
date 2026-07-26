@@ -16,8 +16,8 @@ export async function GET() {
       // 1. Total Words & Relationships
       const totalsResult = await session.run(
         `
-        MATCH (w:Word {userId: $userId})
-        OPTIONAL MATCH (w)-[r]->()
+        MATCH (u:User {id: $userId})-[ru:LEARNING]->(w:Word)
+        OPTIONAL MATCH (w)-[r]->(w2:Word)<-[:LEARNING]-(u)
         RETURN count(DISTINCT w) as totalWords, count(r) as totalRelationships
         `,
         { userId }
@@ -28,9 +28,9 @@ export async function GET() {
       // 2. Daily Activity (Heatmap)
       const activityResult = await session.run(
         `
-        MATCH (w:Word {userId: $userId})
-        WHERE w.createdAt IS NOT NULL
-        WITH substring(w.createdAt, 0, 10) as date, count(w) as count
+        MATCH (u:User {id: $userId})-[ru:LEARNING]->(w:Word)
+        WHERE ru.addedAt IS NOT NULL
+        WITH substring(ru.addedAt, 0, 10) as date, count(w) as count
         RETURN date, count
         ORDER BY date ASC
         `,
@@ -83,8 +83,10 @@ export async function GET() {
       // 3. Most Connected Words Leaderboard
       const connectedResult = await session.run(
         `
-        MATCH (w:Word {userId: $userId})-[r]-()
-        RETURN w.word as word, count(r) as degree
+        MATCH (u:User {id: $userId})-[ru:LEARNING]->(w:Word)
+        OPTIONAL MATCH (w)-[r]->(w2:Word)<-[:LEARNING]-(u)
+        WITH w, count(r) as degree
+        RETURN w.word as word, degree
         ORDER BY degree DESC
         LIMIT 5
         `,

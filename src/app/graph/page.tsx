@@ -23,7 +23,7 @@ import dagre from 'dagre';
 import { MagnifyingGlassIcon, PlusIcon, XMarkIcon, CheckCircleIcon, InformationCircleIcon, SparklesIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline';
 import GraphSidebar from '../../components/GraphSidebar';
 import AddWordForm from '../../components/AddWordForm';
-import { Word } from '../../types/words';
+import { Word, UserWord } from '../../types/words';
 import { RelationshipType, RELATIONSHIP_TYPES } from '../../types/relationship';
 import Link from 'next/link';
 
@@ -114,7 +114,7 @@ function GraphInner() {
   const [nlpPrompt, setNlpPrompt] = useState('');
   const [isNlpLoading, setIsNlpLoading] = useState(false);
   
-  const [selectedWord, setSelectedWord] = useState<Word | null>(null);
+  const [selectedWord, setSelectedWord] = useState<UserWord | null>(null);
   const [connections, setConnections] = useState<{ word: string; type: RelationshipType }[]>([]);
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -205,7 +205,7 @@ function GraphInner() {
 
   const onNodeClick = useCallback((event: React.MouseEvent, node: any) => {
     setSelectedEdge(null);
-    setSelectedWord(node.data as Word);
+    setSelectedWord(node.data as UserWord);
     
     // Find connections
     const conns: { word: string; type: RelationshipType }[] = [];
@@ -232,7 +232,7 @@ function GraphInner() {
   const onNavigateToWord = useCallback((wordString: string) => {
     const targetNode = nodes.find(n => (n.data.word as string) === wordString);
     if (targetNode) {
-      setSelectedWord(targetNode.data as unknown as Word);
+      setSelectedWord(targetNode.data as unknown as UserWord);
       
       const conns: { word: string; type: RelationshipType }[] = [];
       edges.forEach((e) => {

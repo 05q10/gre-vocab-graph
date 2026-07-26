@@ -22,15 +22,14 @@ export async function createRelationship(
   sourceWord: string,
   targetWord: string,
   type: RelationshipType,
-  confidence: number,
-  userId: string
+  confidence: number
 ): Promise<{ success: boolean; isNew: boolean }> {
   const session = driver.session();
   try {
     const result = await session.run(
       `
-      MATCH (source:Word {word: $sourceWord, userId: $userId})
-      MATCH (target:Word {word: $targetWord, userId: $userId})
+      MATCH (source:Word {word: $sourceWord})
+      MATCH (target:Word {word: $targetWord})
       MERGE (source)-[r:${type}]->(target)
       ON CREATE SET r.confidence = $confidence, r.createdAt = $now, r.isNew = true
       ON MATCH SET r.confidence = $confidence, r.isNew = false
@@ -41,7 +40,6 @@ export async function createRelationship(
         targetWord,
         confidence,
         now: new Date().toISOString(),
-        userId,
       }
     );
     if (result.records.length > 0) {
@@ -61,20 +59,19 @@ export async function createRelationship(
 export async function deleteRelationship(
   sourceWord: string,
   targetWord: string,
-  userId: string,
   type?: RelationshipType
 ): Promise<boolean> {
   const session = driver.session();
   try {
     let query = `
-      MATCH (source:Word {word: $sourceWord, userId: $userId})-[r]->(target:Word {word: $targetWord, userId: $userId})
+      MATCH (source:Word {word: $sourceWord})-[r]->(target:Word {word: $targetWord})
       DELETE r
       RETURN count(r) as deletedCount
     `;
 
     if (type) {
       query = `
-        MATCH (source:Word {word: $sourceWord, userId: $userId})-[r:${type}]->(target:Word {word: $targetWord, userId: $userId})
+        MATCH (source:Word {word: $sourceWord})-[r:${type}]->(target:Word {word: $targetWord})
         DELETE r
         RETURN count(r) as deletedCount
       `;
@@ -83,7 +80,6 @@ export async function deleteRelationship(
     const result = await session.run(query, {
       sourceWord,
       targetWord,
-      userId,
     });
     
     return result.records[0].get('deletedCount').toNumber() > 0;

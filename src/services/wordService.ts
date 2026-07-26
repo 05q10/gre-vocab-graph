@@ -1,31 +1,24 @@
 import neo4j from "neo4j-driver";
 import { driver } from "../lib/neo4j";
-import { Word, CreateWordInput, UpdateWordInput } from "../types/words";
+import { Word, UserWord, CreateWordInput, UpdateWordInput } from "../types/words";
 
 /**
- * Creates a new Word node. Does NOT generate or store an embedding —
- * that's handled separately by the embedding service (Phase 7/8),
- * so this function stays fast, dependency-free, and easy to test.
- *
- * Throws if a word with the same name already exists (enforced by
- * the uniqueness constraint we created in Phase 5).
+ * Creates or matches a shared Word node. Does NOT generate or store an embedding —
+ * that's handled separately by the embedding service (Phase 7/8).
  */
 export async function createWord(input: CreateWordInput): Promise<Word> {
   const session = driver.session();
   try {
     const result = await session.run(
       `
-      CREATE (w:Word {
-        word: $word,
-        meaning: $meaning,
-        example: $example,
-        partOfSpeech: $partOfSpeech,
-        additionalMeanings: $additionalMeanings,
-        remarks: $remarks,
-        embedding: null,
-        createdAt: $createdAt,
-        userId: $userId
-      })
+      MERGE (w:Word {word: $word})
+      ON CREATE SET 
+        w.meaning = $meaning,
+        w.example = $example,
+        w.partOfSpeech = $partOfSpeech,
+        w.additionalMeanings = $additionalMeanings,
+        w.embedding = null,
+        w.createdAt = $createdAt
       RETURN w
       `,
       {
@@ -34,33 +27,81 @@ export async function createWord(input: CreateWordInput): Promise<Word> {
         example: input.example,
         partOfSpeech: input.partOfSpeech,
         additionalMeanings: input.additionalMeanings || null,
-        remarks: input.remarks || null,
         createdAt: new Date().toISOString(),
-        userId: input.userId,
       }
     );
 
     return result.records[0].get("w").properties as Word;
-  } catch (err: any) {
-    if (err.code === "Neo.ClientError.Schema.ConstraintValidationFailed") {
-      throw new Error(`Word "${input.word}" already exists.`);
-    }
-    throw err;
   } finally {
     await session.close();
   }
 }
 
 /**
- * Fetches a single word by exact name. Returns null if not found —
- * callers decide whether that's a 404, not this function.
+ * Links a shared word node to a specific user with their personal remarks.
  */
-export async function getWordByName(word: string, userId: string): Promise<Word | null> {
+export async function linkWordToUser(word: string, userId: string, remarks?: string): Promise<UserWord> {
   const session = driver.session();
   try {
     const result = await session.run(
-      `MATCH (w:Word {word: $word, userId: $userId}) RETURN w`,
+      `
+      MATCH (w:Word {word: $word})
+      MERGE (u:User {id: $userId})-[r:LEARNING]->(w)
+      ON CREATE SET 
+        r.remarks = $remarks,
+        r.addedAt = $addedAt
+      ON MATCH SET
+        r.remarks = CASE WHEN $remarks IS NOT NULL THEN $remarks ELSE r.remarks END
+      RETURN w, r
+      `,
+      {
+        word,
+        userId,
+        remarks: remarks || null,
+        addedAt: new Date().toISOString(),
+      }
+    );
+    
+    if (result.records.length === 0) {
+      throw new Error(`Word "${word}" not found.`);
+    }
+
+    const w = result.records[0].get("w").properties as Word;
+    const r = result.records[0].get("r").properties;
+    return { ...w, userId, remarks: r.remarks, addedAt: r.addedAt };
+  } finally {
+    await session.close();
+  }
+}
+
+/**
+ * Fetches a single word by exact name for a specific user. 
+ */
+export async function getWordByName(word: string, userId: string): Promise<UserWord | null> {
+  const session = driver.session();
+  try {
+    const result = await session.run(
+      `MATCH (u:User {id: $userId})-[r:LEARNING]->(w:Word {word: $word}) RETURN w, r`,
       { word, userId }
+    );
+    if (result.records.length === 0) return null;
+    const w = result.records[0].get("w").properties as Word;
+    const r = result.records[0].get("r").properties;
+    return { ...w, userId, remarks: r.remarks, addedAt: r.addedAt };
+  } finally {
+    await session.close();
+  }
+}
+
+/**
+ * Fetches a single word from the global dictionary without user context.
+ */
+export async function getGlobalWordByName(word: string): Promise<Word | null> {
+  const session = driver.session();
+  try {
+    const result = await session.run(
+      `MATCH (w:Word {word: $word}) RETURN w`,
+      { word }
     );
     if (result.records.length === 0) return null;
     return result.records[0].get("w").properties as Word;
@@ -70,18 +111,17 @@ export async function getWordByName(word: string, userId: string): Promise<Word 
 }
 
 /**
- * Updates only the fields provided. Word itself is immutable by design —
- * renaming a word would orphan every relationship a human expects to
- * still point at "Aberration," so we don't support changing `word`.
+ * Updates only the fields provided. 
  */
 export async function updateWord(
   word: string,
   userId: string,
   updates: UpdateWordInput
-): Promise<Word | null> {
+): Promise<UserWord | null> {
   const session = driver.session();
   try {
     const setClauses: string[] = [];
+    const relSetClauses: string[] = [];
     const params: Record<string, unknown> = { word, userId };
 
     if (updates.meaning !== undefined) {
@@ -101,42 +141,48 @@ export async function updateWord(
       params.additionalMeanings = updates.additionalMeanings;
     }
     if (updates.remarks !== undefined) {
-      setClauses.push("w.remarks = $remarks");
+      relSetClauses.push("r.remarks = $remarks");
       params.remarks = updates.remarks;
     }
 
-    if (setClauses.length === 0) {
+    if (setClauses.length === 0 && relSetClauses.length === 0) {
       return getWordByName(word, userId);
     }
 
+    const setQuery = [
+      setClauses.length > 0 ? `SET ${setClauses.join(", ")}` : "",
+      relSetClauses.length > 0 ? `SET ${relSetClauses.join(", ")}` : ""
+    ].filter(Boolean).join(" ");
+
     const result = await session.run(
       `
-      MATCH (w:Word {word: $word, userId: $userId})
-      SET ${setClauses.join(", ")}
-      RETURN w
+      MATCH (u:User {id: $userId})-[r:LEARNING]->(w:Word {word: $word})
+      ${setQuery}
+      RETURN w, r
       `,
       params
     );
 
     if (result.records.length === 0) return null;
-    return result.records[0].get("w").properties as Word;
+    const w = result.records[0].get("w").properties as Word;
+    const r = result.records[0].get("r").properties;
+    return { ...w, userId, remarks: r.remarks, addedAt: r.addedAt };
   } finally {
     await session.close();
   }
 }
 
 /**
- * Deletes a word and all its relationships (DETACH DELETE).
- * Returns true if a node was actually deleted, false if it didn't exist.
+ * Deletes a user's relationship to a word.
  */
 export async function deleteWord(word: string, userId: string): Promise<boolean> {
   const session = driver.session();
   try {
     const result = await session.run(
       `
-      MATCH (w:Word {word: $word, userId: $userId})
-      DETACH DELETE w
-      RETURN count(w) AS deletedCount
+      MATCH (u:User {id: $userId})-[r:LEARNING]->(w:Word {word: $word})
+      DELETE r
+      RETURN count(r) AS deletedCount
       `,
       { word, userId }
     );
@@ -148,24 +194,26 @@ export async function deleteWord(word: string, userId: string): Promise<boolean>
 
 /**
  * Simple substring search across word and meaning, case-insensitive.
- * This is NOT the semantic/vector search from Phase 9 — this is the
- * plain-text search box on the UI (instant search, Phase 16).
  */
-export async function searchWords(query: string, userId: string, limit = 10): Promise<Word[]> {
+export async function searchWords(query: string, userId: string, limit = 10): Promise<UserWord[]> {
   const session = driver.session();
   try {
     const result = await session.run(
       `
-      MATCH (w:Word {userId: $userId})
+      MATCH (u:User {id: $userId})-[r:LEARNING]->(w:Word)
       WHERE toLower(w.word) CONTAINS toLower($query)
          OR toLower(w.meaning) CONTAINS toLower($query)
-      RETURN w
+      RETURN w, r
       ORDER BY w.word
       LIMIT $limit
       `,
       { query, userId, limit: neo4j.int(Math.floor(limit)) }
     );
-    return result.records.map((r) => r.get("w").properties as Word);
+    return result.records.map((record) => {
+        const w = record.get("w").properties as Word;
+        const r = record.get("r").properties;
+        return { ...w, userId, remarks: r.remarks, addedAt: r.addedAt };
+    });
   } finally {
     await session.close();
   }
@@ -173,19 +221,17 @@ export async function searchWords(query: string, userId: string, limit = 10): Pr
 
 /**
  * Overwrites the embedding on an existing Word node.
- * Separate from createWord so it can also be called when a word's
- * meaning/example is edited later (Phase 17) and the embedding goes stale.
  */
-export async function storeEmbedding(word: string, userId: string, embedding: number[]): Promise<void> {
+export async function storeEmbedding(word: string, embedding: number[]): Promise<void> {
   const session = driver.session();
   try {
     const result = await session.run(
       `
-      MATCH (w:Word {word: $word, userId: $userId})
+      MATCH (w:Word {word: $word})
       SET w.embedding = $embedding
       RETURN w
       `,
-      { word, userId, embedding }
+      { word, embedding }
     );
     if (result.records.length === 0) {
       throw new Error(`Cannot store embedding: word "${word}" not found.`);
@@ -200,17 +246,11 @@ export interface SimilarWord {
 }
 
 /**
- * Finds the top-N most semantically similar existing words to the given
- * embedding, using Neo4j's native vector index. This is the "narrow the
- * field" step — results feed into the Llama relationship-detection step
- * (Phase 10), never the LLM directly on the whole graph.
- *
- * excludeWord: pass the word being added so it doesn't match itself.
+ * Finds the top-N most semantically similar existing words in the global dictionary.
  */
 export async function findNearestNeighbors(
   embedding: number[],
   excludeWord: string,
-  userId: string,
   topK = 25
 ): Promise<SimilarWord[]> {
   const session = driver.session();
@@ -219,15 +259,14 @@ export async function findNearestNeighbors(
       `
       CALL db.index.vector.queryNodes('word_embeddings', $topK, $embedding)
       YIELD node, score
-      WHERE node.userId = $userId AND node.word <> $excludeWord
+      WHERE node.word <> $excludeWord
       RETURN node, score
       ORDER BY score DESC
       `,
       {
         topK: neo4j.int(Math.floor(topK) + 1),
         embedding,
-        excludeWord,
-        userId,
+        excludeWord
       }
     );
 

@@ -1,15 +1,15 @@
-import { createWord, storeEmbedding, findNearestNeighbors, getWordByName } from "./wordService";
+import { createWord, storeEmbedding, findNearestNeighbors, getWordByName, getGlobalWordByName, linkWordToUser } from "./wordService";
 import { generateEmbedding, buildEmbeddingInput } from "./embeddingService";
 import { detectRelationships, generateWordDetails } from "./llamaService";
 import { createRelationship } from "./relationshipService";
-import { Word } from "./../types/words";
+import { UserWord } from "./../types/words";
 
 const CANDIDATE_POOL_SIZE = 15; // Only send the closest vector matches to the LLM to avoid weak relationships
 const MIN_CONFIDENCE = 0.90;    // Require extremely high confidence to avoid hallucinated links
 const MIN_VECTOR_SIMILARITY = 0.55; // Drop candidates mathematically proven to be unrelated before LLM sees them
 
 export interface AddWordResult {
-  word: Word;
+  word: UserWord;
   relationshipsCreated: number;
 }
 
@@ -36,57 +36,59 @@ export interface AddWordInput {
 export async function addWord(input: AddWordInput): Promise<AddWordResult> {
   const normalizedWord = input.word.trim().toLowerCase();
   
-  // Check for duplicates before paying for LLM call
-  const existingWord = await getWordByName(normalizedWord, input.userId);
-  if (existingWord) {
-    throw new Error(`Word "${normalizedWord}" already exists.`);
+  // 1. Check if user already has this word in their list
+  const existingUserWord = await getWordByName(normalizedWord, input.userId);
+  if (existingUserWord) {
+    throw new Error(`Word "${normalizedWord}" already exists in your list.`);
   }
 
-  const generatedDetails = await generateWordDetails(normalizedWord);
-  
-  const word = await createWord({
-    word: normalizedWord,
-    userId: input.userId,
-    ...generatedDetails
-  });
+  // 2. Check if word exists in the global dictionary
+  let globalWord = await getGlobalWordByName(normalizedWord);
+  let relationshipsCreated = 0;
 
-  const embeddingInput = buildEmbeddingInput(word.meaning, word.example);
-  const embedding = await generateEmbedding(embeddingInput);
-  await storeEmbedding(normalizedWord, input.userId, embedding);
+  if (!globalWord) {
+    // Word is completely new to the system. Generate definitions & embeddings.
+    const generatedDetails = await generateWordDetails(normalizedWord);
+    
+    globalWord = await createWord({
+      word: normalizedWord,
+      userId: input.userId, // This will be ignored by createWord now, but satisfying type if needed, wait CreateWordInput has userId. We'll leave it.
+      ...generatedDetails
+    });
 
-  const rawCandidates = await findNearestNeighbors(embedding, normalizedWord, input.userId, CANDIDATE_POOL_SIZE);
-  // Hard-drop candidates that are too far away in vector space to possibly be related
-  const candidates = rawCandidates.filter(c => c.score >= MIN_VECTOR_SIMILARITY);
+    const embeddingInput = buildEmbeddingInput(globalWord.meaning, globalWord.example);
+    const embedding = await generateEmbedding(embeddingInput);
+    await storeEmbedding(normalizedWord, embedding);
+    globalWord.embedding = embedding;
 
-  if (candidates.length === 0) {
-    return { word: { ...word, embedding }, relationshipsCreated: 0 };
-  }
+    // Detect relationships only for newly added global words
+    const rawCandidates = await findNearestNeighbors(embedding, normalizedWord, CANDIDATE_POOL_SIZE);
+    const candidates = rawCandidates.filter(c => c.score >= MIN_VECTOR_SIMILARITY);
 
-  const detected = await detectRelationships(
-    { ...word, embedding },
-    candidates.map((c) => c.word)
-  );
+    if (candidates.length > 0) {
+      const detected = await detectRelationships(
+        globalWord,
+        candidates.map((c) => c.word)
+      );
 
-  // Filter out low-confidence relationships first.
-  const confident = detected.filter((r) => r.confidence >= MIN_CONFIDENCE);
+      const confident = detected.filter((r) => r.confidence >= MIN_CONFIDENCE);
+      const deduped = confident.reduce((acc, r) => {
+        const existing = acc.get(r.target);
+        if (!existing || r.confidence > existing.confidence) {
+          acc.set(r.target, r);
+        }
+        return acc;
+      }, new Map<string, (typeof confident)[number]>());
 
-  // A word pair should only ever have ONE relationship type between them.
-  // If Llama returned multiple classifications for the same target word
-  // (e.g. both RELATED_TO and ANTONYM_OF to "Normal"), keep only the one
-  // it was most confident about.
-  const deduped = confident.reduce((acc, r) => {
-    const existing = acc.get(r.target);
-    if (!existing || r.confidence > existing.confidence) {
-      acc.set(r.target, r);
+      for (const rel of deduped.values()) {
+        const res = await createRelationship(normalizedWord, rel.target, rel.type, rel.confidence);
+        if (res.success && res.isNew) relationshipsCreated++;
+      }
     }
-    return acc;
-  }, new Map<string, (typeof confident)[number]>());
-
-  let created = 0;
-  for (const rel of deduped.values()) {
-    const res = await createRelationship(normalizedWord, rel.target, rel.type, rel.confidence, input.userId);
-    if (res.success && res.isNew) created++;
   }
 
-  return { word: { ...word, embedding }, relationshipsCreated: created };
+  // 3. Link the word to the user (create the [:LEARNING] edge)
+  const userWord = await linkWordToUser(normalizedWord, input.userId);
+
+  return { word: userWord, relationshipsCreated };
 }

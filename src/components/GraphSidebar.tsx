@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { XMarkIcon, MinusCircleIcon, CheckIcon, ArrowPathIcon, TrashIcon } from '@heroicons/react/24/outline';
-import { Word } from '../types/words';
+import { Word, UserWord } from '../types/words';
 import { RelationshipType } from '../types/relationship';
 
 interface ConnectedWord {
@@ -9,7 +9,7 @@ interface ConnectedWord {
 }
 
 interface GraphSidebarProps {
-  word: Word | null;
+  word: UserWord | null;
   connections: ConnectedWord[];
   onClose: () => void;
   onNavigateToWord: (word: string) => void;
