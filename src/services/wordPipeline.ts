@@ -1,8 +1,8 @@
-import { createWord, storeEmbedding, findNearestNeighbors, getWordByName, getGlobalWordByName, linkWordToUser } from "./wordService";
+import { createWord, storeEmbedding, findNearestNeighbors, getWordByName, getGlobalWordByName, linkWordToUser, countUserRelationships, findNearestUserNeighbors } from "./wordService";
 import { generateEmbedding, buildEmbeddingInput } from "./embeddingService";
 import { detectRelationships, generateWordDetails } from "./llamaService";
 import { createRelationship } from "./relationshipService";
-import { UserWord } from "./../types/words";
+import { UserWord, Word } from "./../types/words";
 
 const CANDIDATE_POOL_SIZE = 15; // Only send the closest vector matches to the LLM to avoid weak relationships
 const MIN_CONFIDENCE = 0.90;    // Require extremely high confidence to avoid hallucinated links
@@ -44,8 +44,6 @@ export async function addWord(input: AddWordInput): Promise<AddWordResult> {
 
   // 2. Check if word exists in the global dictionary
   let globalWord = await getGlobalWordByName(normalizedWord);
-  let relationshipsCreated = 0;
-
   if (!globalWord) {
     // Word is completely new to the system. Generate definitions & embeddings.
     const generatedDetails = await generateWordDetails(normalizedWord);
@@ -64,31 +62,55 @@ export async function addWord(input: AddWordInput): Promise<AddWordResult> {
     // Detect relationships only for newly added global words
     const rawCandidates = await findNearestNeighbors(embedding, normalizedWord, CANDIDATE_POOL_SIZE);
     const candidates = rawCandidates.filter(c => c.score >= MIN_VECTOR_SIMILARITY);
-
-    if (candidates.length > 0) {
-      const detected = await detectRelationships(
-        globalWord,
-        candidates.map((c) => c.word)
-      );
-
-      const confident = detected.filter((r) => r.confidence >= MIN_CONFIDENCE);
-      const deduped = confident.reduce((acc, r) => {
-        const existing = acc.get(r.target);
-        if (!existing || r.confidence > existing.confidence) {
-          acc.set(r.target, r);
-        }
-        return acc;
-      }, new Map<string, (typeof confident)[number]>());
-
-      for (const rel of deduped.values()) {
-        const res = await createRelationship(normalizedWord, rel.target, rel.type, rel.confidence);
-        if (res.success && res.isNew) relationshipsCreated++;
-      }
-    }
+    await detectAndCreateRelationships(globalWord, candidates);
   }
 
   // 3. Link the word to the user (create the [:LEARNING] edge)
   const userWord = await linkWordToUser(normalizedWord, input.userId);
 
-  return { word: userWord, relationshipsCreated };
+  // 4. Also check for undiscovered relationships specifically with the user's existing words,
+  // even if the word was already in the global dictionary, because the user's specific vocabulary 
+  // might have words that weren't caught in the top 15 global neighbors at creation time.
+  // We need to re-fetch globalWord to ensure we have the embedding if it existed previously.
+  const wordWithEmbedding = await getGlobalWordByName(normalizedWord);
+  if (wordWithEmbedding && wordWithEmbedding.embedding) {
+    const userCandidates = await findNearestUserNeighbors(
+      input.userId,
+      wordWithEmbedding.embedding,
+      normalizedWord,
+      MIN_VECTOR_SIMILARITY,
+      CANDIDATE_POOL_SIZE
+    );
+    await detectAndCreateRelationships(wordWithEmbedding, userCandidates);
+  }
+
+  // 5. Calculate relationships that are actually visible to this user
+  const relationshipsMapped = await countUserRelationships(normalizedWord, input.userId);
+
+  return { word: userWord, relationshipsCreated: relationshipsMapped };
+}
+
+async function detectAndCreateRelationships(
+  sourceWord: Word,
+  candidates: { word: Word; score: number }[]
+) {
+  if (candidates.length === 0) return;
+  
+  const detected = await detectRelationships(
+    sourceWord,
+    candidates.map((c) => c.word)
+  );
+
+  const confident = detected.filter((r) => r.confidence >= MIN_CONFIDENCE);
+  const deduped = confident.reduce((acc, r) => {
+    const existing = acc.get(r.target);
+    if (!existing || r.confidence > existing.confidence) {
+      acc.set(r.target, r);
+    }
+    return acc;
+  }, new Map<string, (typeof confident)[number]>());
+
+  for (const rel of deduped.values()) {
+    await createRelationship(sourceWord.word, rel.target, rel.type, rel.confidence);
+  }
 }

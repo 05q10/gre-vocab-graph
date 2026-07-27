@@ -279,3 +279,65 @@ export async function findNearestNeighbors(
     await session.close();
   }
 }
+
+/**
+ * Counts how many relationships a specific word has with OTHER words in the user's learning list.
+ */
+export async function countUserRelationships(word: string, userId: string): Promise<number> {
+  const session = driver.session();
+  try {
+    const result = await session.run(
+      `
+      MATCH (u:User {id: $userId})-[ra:LEARNING]->(a:Word {word: $word})
+      MATCH (u)-[rb:LEARNING]->(b:Word)
+      WHERE a <> b
+      MATCH (a)-[r]-(b)
+      RETURN count(DISTINCT r) as relCount
+      `,
+      { word, userId }
+    );
+    return result.records[0].get("relCount").toNumber();
+  } finally {
+    await session.close();
+  }
+}
+
+/**
+ * Finds the top-N most semantically similar words specifically from the user's existing vocabulary.
+ */
+export async function findNearestUserNeighbors(
+  userId: string,
+  embedding: number[],
+  excludeWord: string,
+  minScore: number,
+  topK = 15
+): Promise<SimilarWord[]> {
+  const session = driver.session();
+  try {
+    const result = await session.run(
+      `
+      MATCH (u:User {id: $userId})-[:LEARNING]->(node:Word)
+      WHERE node.word <> $excludeWord AND node.embedding IS NOT NULL
+      WITH node, vector.similarity.cosine(node.embedding, $embedding) AS score
+      WHERE score >= $minScore
+      RETURN node, score
+      ORDER BY score DESC
+      LIMIT $topK
+      `,
+      {
+        userId,
+        minScore,
+        topK: neo4j.int(Math.floor(topK)),
+        embedding,
+        excludeWord
+      }
+    );
+
+    return result.records.map((r) => ({
+      word: r.get("node").properties as Word,
+      score: r.get("score") as number,
+    }));
+  } finally {
+    await session.close();
+  }
+}
