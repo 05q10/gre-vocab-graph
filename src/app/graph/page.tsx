@@ -564,7 +564,7 @@ function GraphInner() {
       {/* Legend Toggle Button */}
       <button 
         onClick={() => setIsLegendOpen(true)}
-        className={`absolute bottom-[100px] left-6 z-20 p-3 bg-surface-elevated border border-border shadow-md rounded-full text-foreground hover:text-accent transition-transform duration-300 ${isLegendOpen ? 'scale-0 opacity-0' : 'scale-100 opacity-100'}`}
+        className={`absolute bottom-[170px] left-6 z-20 p-3 bg-surface-elevated border border-border shadow-md rounded-full text-foreground hover:text-accent transition-transform duration-300 ${isLegendOpen ? 'scale-0 opacity-0' : 'scale-100 opacity-100'}`}
         aria-label="Open Legend"
       >
         <InformationCircleIcon className="w-6 h-6" />
